@@ -13,12 +13,12 @@ MOAJ follows a strict physical and compile-time separation between its MIT-licen
 | Path | License | Responsibility |
 | --- | --- | --- |
 | `cmd/moaj/` | MIT | Process entry point (`serve`, `version`, `help`; `worker` and `migrate` in later phases). |
-| `internal/config/` | MIT | Validated environment configuration (`MOAJ_*` with legacy `IMS_*` aliases), timeout bounds, and `_FILE` secret loading. |
+| `internal/config/` | MIT | Validated environment configuration (`MOAJ_*` only), timeout bounds, and `_FILE` secret loading. |
 | `internal/api/` | MIT | HTTP server, graceful drain lifecycle, security headers, request limits, and RFC 9457 Problem Details. |
 | `internal/observability/` | MIT | Structured JSON logging (`log/slog`) and instance-scoped Prometheus metrics (`moaj_*`). |
 | `internal/enterprise/` | MIT | Compile-time bridge interface (`//go:build !ee` vs `//go:build ee`). Neither stub grants paid capabilities without Phase 9 license verification. |
 | `db/`, `ui/` | MIT | SQL migrations/queries (Phase 2) and static SvelteKit frontend (Phase 4). |
-| `deploy/`, `docs/` | MIT | Prometheus/Grafana monitoring assets, operational runbooks, ADRs, and governance documentation. |
+| `deploy/`, `docs/` | MIT | Prometheus/Grafana monitoring assets, operational runbooks, ADRs, and governance documentation. See `docs/governance/LICENSING_BOUNDARIES.md` §2 for the exact per-path mapping. |
 | `ee/` | Proprietary (`ee/EULA.md`) | Enterprise-only SAML/OIDC, SCIM, PBAC, SIEM, and RS256 `.lic` verification (Phase 9). Never imported by Community builds. |
 
 ---
@@ -80,24 +80,26 @@ go test -tags ee ./...
 
 MOAJ validates all settings at startup and fails fast on empty explicit variables or malformed values.
 
-Secret-capable settings support `*_FILE` variants (up to 64 KiB, trailing `\r\n` stripped, mutually exclusive with the direct environment variable and any legacy alias). Note that `MOAJ_LICENSE_FILE` is already a filesystem path and does not use a `_FILE` suffix.
+Secret-capable settings support `*_FILE` variants (up to 64 KiB, trailing `\r\n` stripped, mutually exclusive with the direct environment variable). Note that `MOAJ_LICENSE_FILE` is already a filesystem path and does not use a `_FILE` suffix.
 
-| Variable | Legacy Aliases | `_FILE` Support | Default | Description |
-| --- | --- | --- | --- | --- |
-| `MOAJ_ENV` | `IMS_ENV` | Yes | `development` | Deployment environment: `development`, `test`, or `production`. |
-| `MOAJ_LOG_LEVEL` | `IMS_LOG_LEVEL` | Yes | `INFO` | Minimum structured JSON log level: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
-| `MOAJ_APP_DOMAIN` | `IMS_APP_DOMAIN`, `APP_DOMAIN` | Yes | `localhost` | Public hostname (without scheme or path). Must not be `localhost` / loopback when `MOAJ_ENV=production`. |
-| `MOAJ_HTTP_ADDR` | `IMS_HTTP_ADDR`, `HTTP_ADDR` | Yes | `127.0.0.1:8000` | TCP `host:port` bind address (`1–65535`). |
-| `MOAJ_DATABASE_URL` | `IMS_DATABASE_URL`, `DATABASE_URL` | Yes | *(empty)* | PostgreSQL connection URL (`postgres://` or `postgresql://`). Validated when set; required starting in Phase 2. |
-| `MOAJ_VALKEY_ADDR` | `IMS_VALKEY_ADDR`, `REDIS_ADDR` | Yes | `localhost:6379` | Valkey `host:port` address (`1–65535`). Required by workers starting in Phase 5. |
-| `MOAJ_LICENSE_FILE` | `IMS_LICENSE_FILE`, `MINTERN_LICENSE_FILE` | No *(is a path)* | `/etc/moaj/moaj_enterprise.lic` | Path to the Enterprise `.lic` file (verified in Phase 9). |
-| `MOAJ_METRICS_TOKEN` | `IMS_METRICS_TOKEN` | Yes | *(empty)* | Bearer token protecting `/metrics`. Must be `>= 32` non-whitespace characters when `MOAJ_ENV=production` or when `MOAJ_HTTP_ADDR` binds beyond loopback. |
-| `MOAJ_HTTP_READ_TIMEOUT_SEC` | `IMS_HTTP_READ_TIMEOUT_SEC`, `HTTP_READ_TIMEOUT_SEC` | Yes | `10` | Maximum duration (seconds) for reading an entire request. |
-| `MOAJ_HTTP_READ_HEADER_TIMEOUT_SEC` | `IMS_HTTP_READ_HEADER_TIMEOUT_SEC` | Yes | `5` | Maximum duration (seconds) allowed to read request headers. |
-| `MOAJ_HTTP_WRITE_TIMEOUT_SEC` | `IMS_HTTP_WRITE_TIMEOUT_SEC`, `HTTP_WRITE_TIMEOUT_SEC` | Yes | `15` | Maximum duration (seconds) before timing out writes of the response. |
-| `MOAJ_HTTP_IDLE_TIMEOUT_SEC` | `IMS_HTTP_IDLE_TIMEOUT_SEC`, `HTTP_IDLE_TIMEOUT_SEC` | Yes | `60` | Maximum duration (seconds) to wait for the next request on keep-alive connections. |
-| `MOAJ_HTTP_SHUTDOWN_TIMEOUT_SEC` | `IMS_HTTP_SHUTDOWN_TIMEOUT_SEC`, `HTTP_SHUTDOWN_TIMEOUT_SEC` | Yes | `10` | Grace period (seconds) to drain active HTTP requests on `SIGINT` / `SIGTERM`. |
-| `MOAJ_HTTP_MAX_BODY_BYTES` | `IMS_HTTP_MAX_BODY_BYTES` | Yes | `1048576` | Maximum allowed request body size in bytes (default 1 MiB). |
+**Only `MOAJ_*` variables are read.** There are deliberately no unprefixed (`DATABASE_URL`, `HTTP_ADDR`, `REDIS_ADDR`, `APP_DOMAIN`), `IMS_*`, or `MINTERN_*` aliases: nothing has shipped under an earlier name, and honouring generic names would let another process's ambient `DATABASE_URL` reconfigure MOAJ. Such variables are ignored entirely - they neither override a `MOAJ_*` setting nor cause a startup conflict.
+
+| Variable | `_FILE` Support | Default | Description |
+| --- | --- | --- | --- |
+| `MOAJ_ENV` | Yes | `development` | Deployment environment: `development`, `test`, or `production`. |
+| `MOAJ_LOG_LEVEL` | Yes | `INFO` | Minimum structured JSON log level: `DEBUG`, `INFO`, `WARN`, or `ERROR`. |
+| `MOAJ_APP_DOMAIN` | Yes | `localhost` | Public hostname (without scheme or path). Must not be `localhost` / loopback when `MOAJ_ENV=production`. |
+| `MOAJ_HTTP_ADDR` | Yes | `127.0.0.1:8000` | TCP `host:port` bind address (`1–65535`). |
+| `MOAJ_DATABASE_URL` | Yes | *(empty)* | PostgreSQL connection URL (`postgres://` or `postgresql://`). Validated when set; required starting in Phase 2. |
+| `MOAJ_VALKEY_ADDR` | Yes | `localhost:6379` | Valkey `host:port` address (`1–65535`). Required by workers starting in Phase 5. |
+| `MOAJ_LICENSE_FILE` | No *(is a path)* | `/etc/moaj/moaj_enterprise.lic` | Path to the Enterprise `.lic` file (verified in Phase 9). |
+| `MOAJ_METRICS_TOKEN` | Yes | *(empty)* | Bearer token protecting `/metrics`. Must be `>= 32` non-whitespace characters when `MOAJ_ENV=production` or when `MOAJ_HTTP_ADDR` binds beyond loopback. |
+| `MOAJ_HTTP_READ_TIMEOUT_SEC` | Yes | `10` | Maximum duration (seconds) for reading an entire request. |
+| `MOAJ_HTTP_READ_HEADER_TIMEOUT_SEC` | Yes | `5` | Maximum duration (seconds) allowed to read request headers. |
+| `MOAJ_HTTP_WRITE_TIMEOUT_SEC` | Yes | `15` | Maximum duration (seconds) before timing out writes of the response. |
+| `MOAJ_HTTP_IDLE_TIMEOUT_SEC` | Yes | `60` | Maximum duration (seconds) to wait for the next request on keep-alive connections. |
+| `MOAJ_HTTP_SHUTDOWN_TIMEOUT_SEC` | Yes | `10` | Grace period (seconds) to drain active HTTP requests on `SIGINT` / `SIGTERM`. |
+| `MOAJ_HTTP_MAX_BODY_BYTES` | Yes | `1048576` | Maximum allowed request body size in bytes (default 1 MiB). |
 
 ---
 
@@ -131,6 +133,7 @@ curl -s -H "Authorization: Bearer $MOAJ_METRICS_TOKEN" http://127.0.0.1:8000/met
 ## Documentation Index
 
 - **Implementation Plan & Amendments**: [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)
+- **Change History**: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 - **Operations & Monitoring Runbook**: [`docs/operations/monitoring.md`](docs/operations/monitoring.md)
 - **Monitoring Assets**:
   - Prometheus scrape config: [`deploy/monitoring/prometheus.yml`](deploy/monitoring/prometheus.yml)

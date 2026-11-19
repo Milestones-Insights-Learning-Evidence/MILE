@@ -1,6 +1,10 @@
 # MOAJ (Mentor of all Jacks) - Prometheus Alerting Rules (Phase 1 Baseline)
 #
-# Every alert links to its operational runbook in docs/operations/monitoring.md.
+# Every alert links to its operational runbook section in docs/operations/monitoring.md.
+# runbook_url must stay an absolute https:// link: Alertmanager and Grafana render it as
+# a clickable link from their own origin, where a repository-relative path resolves to
+# nothing. Anchors are GitHub's auto-generated heading slugs (the lowercased alert name),
+# so renaming an alert requires renaming its runbook heading in the same commit.
 #
 # Planned roadmap extensions to this rule file:
 # - Phase 2 (Persistence): PostgreSQL connection pool saturation, wait duration, and query/tx error alerts.
@@ -20,7 +24,7 @@ groups:
         annotations:
           summary: "MOAJ HTTP runtime scrape target is down"
           description: "Prometheus has failed to scrape {{ $labels.instance }} (job={{ $labels.job }}) for more than 1 minute."
-          runbook_url: "docs/operations/monitoring.md#moajtargetdown"
+          runbook_url: "https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#moajtargetdown"
 
       - alert: MOAJHighServerFaultRate
         # Explicitly measures 5xx server faults (status=~"5..") as a ratio of total traffic.
@@ -41,7 +45,7 @@ groups:
         annotations:
           summary: "MOAJ HTTP 5xx server fault rate exceeds 1%"
           description: "Instance {{ $labels.instance }} is returning HTTP 5xx responses on {{ $value | humanizePercentage }} of requests over the last 5 minutes."
-          runbook_url: "docs/operations/monitoring.md#moajhighserverfaultrate"
+          runbook_url: "https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#moajhighserverfaultrate"
 
       - alert: MOAJHighRequestLatencyP95
         expr: |
@@ -56,7 +60,7 @@ groups:
         annotations:
           summary: "MOAJ p95 HTTP latency exceeds 500ms on route {{ $labels.route }}"
           description: "Route {{ $labels.route }} has a 95th percentile latency of {{ $value | humanizeDuration }} over the last 5 minutes."
-          runbook_url: "docs/operations/monitoring.md#moajhighrequestlatencyp95"
+          runbook_url: "https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#moajhighrequestlatencyp95"
 
       - alert: MOAJFrequentProcessRestarts
         expr: changes(moaj_process_start_time_seconds[15m]) > 2
@@ -67,7 +71,7 @@ groups:
         annotations:
           summary: "MOAJ process has restarted more than twice in 15 minutes"
           description: "Instance {{ $labels.instance }} recorded {{ $value }} process start time changes in the last 15 minutes."
-          runbook_url: "docs/operations/monitoring.md#moajfrequentprocessrestarts"
+          runbook_url: "https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#moajfrequentprocessrestarts"
 
       - alert: MOAJHighInFlightRequests
         expr: moaj_http_requests_in_flight > 100
@@ -78,4 +82,4 @@ groups:
         annotations:
           summary: "MOAJ in-flight HTTP requests sustained above 100"
           description: "Instance {{ $labels.instance }} has {{ $value }} concurrent in-flight HTTP requests for more than 5 minutes."
-          runbook_url: "docs/operations/monitoring.md#moajhighinflightrequests"
+          runbook_url: "https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#moajhighinflightrequests"

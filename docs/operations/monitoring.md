@@ -24,6 +24,16 @@ Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.
    - Startup validation rejects an empty `MOAJ_METRICS_TOKEN` when `MOAJ_ENV=production` or when `MOAJ_HTTP_ADDR` binds to a non-loopback address (such as `0.0.0.0:8000` or `:8000`).
    - When `MOAJ_METRICS_TOKEN` is unset in local development, `/metrics` inspects the socket peer (`r.RemoteAddr`) directly—never `X-Forwarded-For` or `X-Real-IP`—and rejects non-loopback peers with `403 Forbidden`.
 
+### Containers and Compose
+
+A container that serves published traffic must bind beyond loopback, so **the token is always required there**:
+
+- Set `MOAJ_HTTP_ADDR=0.0.0.0:8000`. The default `127.0.0.1:8000` is reachable only from inside the container, so a published port would accept nothing.
+- Supply `MOAJ_METRICS_TOKEN` (or `MOAJ_METRICS_TOKEN_FILE`) with at least 32 non-whitespace characters, for example `openssl rand -hex 32`. Prefer the `_FILE` form with a mounted secret so the value does not appear in `docker inspect` output or shell history.
+- Without it the process exits at startup with a configuration error rather than exposing an unauthenticated `/metrics`. This is intentional, not a bug.
+- `deploy/Dockerfile` publishes port `8000` (matching the default) and ships a `HEALTHCHECK` against `/healthz`. Because `/healthz` stays `200` while the process drains, orchestrators that need drain-aware routing must probe `/readyz` instead.
+- `deploy/docker-compose.yml` publishes PostgreSQL and Valkey on `127.0.0.1` only; its fixed development password must never be exposed on a routable interface.
+
 ---
 
 ## 2. Metric Catalog (Phase 1 Baseline)
@@ -42,6 +52,7 @@ Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.
 
 Each `observability.Metrics` registry also registers:
 - **`collectors.NewGoCollector()`**: Exports `go_goroutines`, `go_memstats_alloc_bytes`, `go_memstats_heap_inuse_bytes`, `go_gc_duration_seconds`, and Go runtime scheduler statistics.
+  - `go_gc_duration_seconds` is a **summary** that `client_golang` exports with the quantiles `0`, `0.25`, `0.5`, `0.75` and `1` only. There is no `quantile="0.99"` series; dashboards and alerts must use `quantile="0.75"` or `quantile="1"` (observed maximum pause), or switch to the `/metrics` runtime histogram `go_gc_pauses_seconds` if a true high percentile is required.
 - **`collectors.NewProcessCollector()`**: Exports `process_cpu_seconds_total`, `process_resident_memory_bytes`, and `process_open_fds` on supported OS platforms (Linux/procfs).
 
 ### Label Cardinality & Privacy Policy
@@ -92,7 +103,16 @@ All logs are written as single-line JSON records to `stderr` via Go's `log/slog.
 
 The following sections correspond to the `runbook_url` annotations in `deploy/monitoring/alerts.yml`.
 
-### `MOAJTargetDown` {#moajtargetdown}
+Each `runbook_url` is an absolute link of the form
+`https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/blob/main/docs/operations/monitoring.md#<alertname-lowercased>`,
+because Alertmanager and Grafana render that annotation as a clickable link and a
+repository-relative path resolves against the alerting UI, not against this repository.
+The heading anchors below are GitHub's auto-generated slugs, so **renaming an alert or
+its heading breaks the link**: keep each heading as the bare alert name in backticks.
+Explicit `{#anchor}` attributes are not Markdown and GitHub renders them as literal text,
+which is why they are not used here.
+
+### `MOAJTargetDown`
 
 - **Condition**: `up{job="moaj"} == 0` for 1 minute.
 - **Impact**: Either the `moaj` HTTP runtime process is down/unreachable, or Prometheus cannot authenticate/connect to `/metrics`.
@@ -108,7 +128,7 @@ The following sections correspond to the `runbook_url` annotations in `deploy/mo
      ```
   4. Verify that `MOAJ_METRICS_TOKEN` (or `MOAJ_METRICS_TOKEN_FILE`) matches the token in Prometheus `authorization.credentials_file`.
 
-### `MOAJHighServerFaultRate` {#moajhighserverfaultrate}
+### `MOAJHighServerFaultRate`
 
 - **Condition**: HTTP `5xx` responses exceed 1% of total requests over 5 minutes (while request rate > 0.1 req/s). Expected `409`/`428` workflow responses and `4xx` client errors do not trigger this alert.
 - **Impact**: Users are experiencing internal server errors (`500`) or service unavailability (`503`).
@@ -121,7 +141,7 @@ The following sections correspond to the `runbook_url` annotations in `deploy/mo
   3. Use the `request_id` from affected client error responses (`application/problem+json`) to locate the exact server log entry.
   4. In Phase 2+, verify PostgreSQL connectivity and pool saturation metrics.
 
-### `MOAJHighRequestLatencyP95` {#moajhighrequestlatencyp95}
+### `MOAJHighRequestLatencyP95`
 
 - **Condition**: 95th percentile latency on any bounded `route` exceeds `500ms` over 5 minutes.
 - **Impact**: Degraded responsiveness on API or health endpoints; risk of hitting `MOAJ_HTTP_WRITE_TIMEOUT_SEC` (default `15s`).
@@ -130,7 +150,7 @@ The following sections correspond to the `runbook_url` annotations in `deploy/mo
   2. Inspect **Process CPU & GC Pause Duration** and **Memory Allocation & Resident Heap** to rule out host CPU throttling or memory pressure.
   3. Correlate with **In-Flight HTTP Requests** to determine whether latency is caused by traffic saturation or downstream dependency contention (PostgreSQL/Valkey in Phases 2 and 5).
 
-### `MOAJFrequentProcessRestarts` {#moajfrequentprocessrestarts}
+### `MOAJFrequentProcessRestarts`
 
 - **Condition**: `changes(moaj_process_start_time_seconds[15m]) > 2`.
 - **Impact**: Crash loop, OOM kills, failing liveness probes, or repeated configuration/deployment restarts.
@@ -139,7 +159,7 @@ The following sections correspond to the `runbook_url` annotations in `deploy/mo
   2. Check JSON logs immediately preceding each startup message (`"msg":"HTTP runtime listening"`) for `"msg":"startup or server failed"` or `"msg":"HTTP shutdown started"`.
   3. Compare `process_resident_memory_bytes` and `go_memstats_heap_inuse_bytes` against container memory limits.
 
-### `MOAJHighInFlightRequests` {#moajhighinflightrequests}
+### `MOAJHighInFlightRequests`
 
 - **Condition**: `moaj_http_requests_in_flight > 100` for 5 minutes.
 - **Impact**: Request queuing or stalled handlers holding connections open.

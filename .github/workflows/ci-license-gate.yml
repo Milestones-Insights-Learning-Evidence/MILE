@@ -20,10 +20,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # go-version (not go-version-file) so the latest patched 1.26.x is installed.
+      # go.mod declares `go 1.26.0` as a floor; resolving the file verbatim would pin
+      # 1.26.0 and miss standard-library security fixes that govulncheck reports.
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.26.x"
+          check-latest: true
           cache: true
 
       - name: Check Go formatting (gofmt)
@@ -40,11 +44,20 @@ jobs:
           go vet ./...
           go vet -tags ee ./...
 
-      - name: Run staticcheck (Community & Enterprise)
+      - name: Run staticcheck (Community, default build tags)
         uses: dominikh/staticcheck-action@v1.3.0
         with:
           version: "latest"
           install-go: false
+
+      # Files behind //go:build ee are invisible to the default run above, so the
+      # Enterprise build tag is analysed in a second pass.
+      - name: Run staticcheck (Enterprise, -tags ee)
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          version: "latest"
+          install-go: false
+          build-tags: ee
 
       - name: Run govulncheck
         run: |
@@ -75,8 +88,8 @@ jobs:
           ./bin/moaj version
           ./bin/moaj-ee version
 
-  license-and-cla-gate:
-    name: Dependency License Cleanliness (NFR-03) & CLA Gate (IMS-GOV-01)
+  license-gate:
+    name: Dependency License Cleanliness (NFR-03)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -85,7 +98,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.26.x"
+          check-latest: true
           cache: true
 
       - name: Verify Go module allowlist (docs/governance/DEPENDENCY_LICENSES.md)
@@ -108,20 +122,33 @@ jobs:
             echo "UI dependencies not installed yet (Phase 4 scaffold); skipping npm license-checker."
           fi
 
-      - name: Enforce Contributor License Agreement (CLA) on external Pull Requests (IMS-GOV-01 §2)
-        if: github.event_name == 'pull_request'
+  # This job checks for a self-asserted acknowledgement sentence in the pull-request
+  # body. That is a prompt, not proof: anyone can type it, GitHub does not
+  # authenticate it, and no signature record is stored anywhere. It must not be
+  # described or relied on as CLA verification. Actual CLA enforcement requires the
+  # hosted CLA bot / signature database tracked under D17
+  # (docs/governance/LICENSING_BOUNDARIES.md §5), which must be configured before any
+  # external pull request is merged.
+  cla-acknowledgement-prompt:
+    name: CLA Acknowledgement Prompt (advisory - not signature verification; see D17)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for self-asserted CLA acknowledgement text in the PR body
         env:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO_OWNER: ${{ github.repository_owner }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           if [ "$PR_AUTHOR" = "$REPO_OWNER" ] || [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
-            echo "PR author ($PR_AUTHOR) is repository owner or automated dependency bot; CLA satisfied."
+            echo "PR author ($PR_AUTHOR) is the repository owner or the dependency bot; no acknowledgement needed."
             exit 0
           fi
           if echo "$PR_BODY" | grep -Eq "I have read the CLA Document and I hereby sign the CLA"; then
-            echo "External contributor ($PR_AUTHOR) confirmed CLA signature in PR body."
+            echo "Acknowledgement sentence present. NOTE: this is self-asserted and unverified."
+            echo "A reviewer must confirm a real ICLA/CCLA signature (D17) before merging."
             exit 0
           fi
-          echo "::error::External contributions require a signed Individual/Corporate CLA per IMS-GOV-01 §2 and CONTRIBUTING.md."
+          echo "::error::Add the CLA acknowledgement sentence from CONTRIBUTING.md to the PR body."
+          echo "::notice::This check only looks for that sentence. It does not verify a signature; a maintainer must confirm the executed ICLA/CCLA out of band until the hosted CLA bot (D17) is live."
           exit 1

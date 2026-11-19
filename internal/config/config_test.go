@@ -27,22 +27,51 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
-func TestSecretFilesAndLegacyAliases(t *testing.T) {
+func TestSecretFileLoading(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database-secret")
 	secret := "postgres://moaj:secret@localhost:5432/moaj"
 	if err := os.WriteFile(path, []byte(secret+"\r\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	c, err := load(lookupMap(map[string]string{
-		"MOAJ_DATABASE_URL_FILE": path,
-		"IMS_HTTP_ADDR":          "localhost:9000",
-		"HTTP_READ_TIMEOUT_SEC":  "12",
+		"MOAJ_DATABASE_URL_FILE":     path,
+		"MOAJ_HTTP_ADDR":             "localhost:9000",
+		"MOAJ_HTTP_READ_TIMEOUT_SEC": "12",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.DatabaseURL != secret || c.HTTPAddr != "localhost:9000" || c.ReadTimeout != 12*time.Second {
-		t.Fatal("secret loading or legacy alias failed")
+		t.Fatal("secret file loading failed")
+	}
+}
+
+// Nothing has shipped under an earlier name, so unprefixed and IMS_*/MINTERN_*
+// variables must be inert: an ambient DATABASE_URL or HTTP_ADDR from an unrelated
+// process must neither reconfigure MOAJ nor collide with its own MOAJ_* setting.
+func TestLegacyAndUnprefixedVariablesAreIgnored(t *testing.T) {
+	c, err := load(lookupMap(map[string]string{
+		"DATABASE_URL":              "postgres://other-app@db.invalid/other",
+		"MOAJ_DATABASE_URL":         "postgres://moaj@localhost:5432/moaj",
+		"HTTP_ADDR":                 "0.0.0.0:9999",
+		"APP_DOMAIN":                "other.example.org",
+		"REDIS_ADDR":                "redis.invalid:6379",
+		"IMS_ENV":                   "production",
+		"IMS_HTTP_ADDR":             "0.0.0.0:7777",
+		"MINTERN_LICENSE_FILE":      "/tmp/stale.lic",
+		"HTTP_READ_TIMEOUT_SEC":     "99",
+		"IMS_HTTP_IDLE_TIMEOUT_SEC": "99",
+	}))
+	if err != nil {
+		t.Fatalf("ambient non-MOAJ variables must not affect startup: %v", err)
+	}
+	if c.DatabaseURL != "postgres://moaj@localhost:5432/moaj" {
+		t.Fatalf("MOAJ_DATABASE_URL was overridden: %q", c.DatabaseURL)
+	}
+	if c.Env != "development" || c.HTTPAddr != "127.0.0.1:8000" || c.AppDomain != "localhost" ||
+		c.ValkeyAddr != "localhost:6379" || c.LicenseFile != "/etc/moaj/moaj_enterprise.lic" ||
+		c.ReadTimeout != 10*time.Second || c.IdleTimeout != 60*time.Second {
+		t.Fatalf("legacy or unprefixed variable leaked into configuration: %#v", c)
 	}
 }
 
@@ -59,8 +88,6 @@ func TestInvalidExplicitConfiguration(t *testing.T) {
 		{"unknown env", map[string]string{"MOAJ_ENV": "prod"}, "MOAJ_ENV"},
 		{"unknown log", map[string]string{"MOAJ_LOG_LEVEL": "verbose"}, "MOAJ_LOG_LEVEL"},
 		{"bad port", map[string]string{"MOAJ_HTTP_ADDR": "localhost:65536"}, "MOAJ_HTTP_ADDR"},
-		{"aliases conflict", map[string]string{"MOAJ_HTTP_ADDR": "localhost:9000", "IMS_HTTP_ADDR": "localhost:8000"}, "mutually exclusive"},
-		{"legacy aliases conflict", map[string]string{"IMS_HTTP_ADDR": "localhost:9000", "HTTP_ADDR": "localhost:8000"}, "mutually exclusive"},
 		{"file conflict", map[string]string{"MOAJ_DATABASE_URL": "postgres://localhost/moaj", "MOAJ_DATABASE_URL_FILE": "secret"}, "mutually exclusive"},
 		{"missing file", map[string]string{"MOAJ_METRICS_TOKEN_FILE": filepath.Join(t.TempDir(), "absent")}, "could not be read"},
 		{"body limit", map[string]string{"MOAJ_HTTP_MAX_BODY_BYTES": "-1"}, "MOAJ_HTTP_MAX_BODY_BYTES"},

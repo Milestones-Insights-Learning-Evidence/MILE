@@ -220,7 +220,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Process CPU usage rate (cores) and Go garbage-collector pause quantiles.",
+      "description": "Process CPU usage rate (cores) and Go garbage-collector pause quantiles. go_gc_duration_seconds is a summary that client_golang exports with quantiles 0, 0.25, 0.5, 0.75 and 1 only, so this panel plots the 0.75 quantile and the observed maximum (quantile 1) rather than a p99, which does not exist in this series.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -241,9 +241,14 @@
           "refId": "A"
         },
         {
-          "expr": "go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}",
-          "legendFormat": "{{instance}} GC pause p99",
+          "expr": "go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.75\"}",
+          "legendFormat": "{{instance}} GC pause q0.75",
           "refId": "B"
+        },
+        {
+          "expr": "go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"1\"}",
+          "legendFormat": "{{instance}} GC pause max",
+          "refId": "C"
         }
       ],
       "title": "Process CPU & GC Pause Duration",

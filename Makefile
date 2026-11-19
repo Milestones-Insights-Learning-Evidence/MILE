@@ -6,6 +6,7 @@
 #   make test-ee         - Run unit tests (Enterprise -tags ee build)
 #   make test-race       - Run unit tests with Go race detector (Community & EE)
 #   make vet             - Run go vet on both Community and Enterprise build tags
+#   make staticcheck     - Run staticcheck on both Community and Enterprise build tags
 #   make fmt-check       - Verify all Go files are formatted with gofmt
 #   make boundary-check  - Verify default Community build imports zero packages from ee/
 #   make license-check   - Verify all go.mod dependencies match approved permissive allowlist
@@ -17,6 +18,7 @@ GO          ?= go
 GOFMT       ?= gofmt
 SQLC        ?= sqlc
 GO_LICENSES ?= go-licenses
+STATICCHECK ?= staticcheck
 BIN_DIR     := bin
 BINARY      := $(BIN_DIR)/moaj
 BINARY_EE   := $(BIN_DIR)/moaj-ee
@@ -35,9 +37,9 @@ APPROVED_MODULES := \
 	golang.org/x/sys \
 	google.golang.org/protobuf
 
-.PHONY: all build build-ee test test-ee test-race vet fmt-check boundary-check license-check generate ui clean
+.PHONY: all build build-ee test test-ee test-race vet staticcheck fmt-check boundary-check license-check generate ui clean
 
-all: fmt-check vet boundary-check license-check test test-ee build build-ee
+all: fmt-check vet staticcheck boundary-check license-check test test-ee build build-ee
 
 build:
 	@mkdir -p $(BIN_DIR)
@@ -61,6 +63,15 @@ vet:
 	$(GO) vet ./...
 	$(GO) vet -tags ee ./...
 
+# Files behind //go:build ee are invisible to a default-tag analysis, so the ee build
+# is checked in a second pass. CI mirrors this with two staticcheck-action steps.
+staticcheck:
+	@command -v $(STATICCHECK) >/dev/null 2>&1 || \
+		{ echo "ERROR: staticcheck not installed. Install it with: go install honnef.co/go/tools/cmd/staticcheck@latest"; exit 1; }
+	$(STATICCHECK) ./...
+	$(STATICCHECK) -tags ee ./...
+	@echo "OK: staticcheck passed for Community and Enterprise build tags."
+
 fmt-check:
 	@unformatted=$$($(GOFMT) -l .); \
 	if [ -n "$$unformatted" ]; then \
@@ -79,20 +90,30 @@ boundary-check:
 	fi
 	@echo "OK: Community build dependency graph contains zero ee/ packages."
 
+# Gates the modules actually linked into the shipped binaries, for both editions and
+# for the GOOS/GOARCH that is distributed (linux/amd64 containers). `go list -m all`
+# must NOT be used here: module-graph pruning still reports test-only dependencies of
+# dependencies (testify, kingpin, json-iterator, ...) that are never compiled into
+# bin/moaj, so it fails the gate on software MOAJ does not distribute. That is exactly
+# the distributed-vs-build-tool distinction in docs/governance/DEPENDENCY_LICENSES.md section 2.
+LINKED_MODULES = $(sort $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/moaj) $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -tags ee -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/moaj))
+
 license-check:
-	@for mod in $$($(GO) list -m -f '{{.Path}}' all); do \
+	@for mod in $(LINKED_MODULES); do \
 		allowed=0; \
 		for ok in $(APPROVED_MODULES); do \
 			if [ "$$mod" = "$$ok" ]; then allowed=1; break; fi; \
 		done; \
 		if [ "$$allowed" -eq 0 ]; then \
-			echo "ERROR: Unapproved module '$$mod' found in go.mod."; \
-			echo "Verify permissive SPDX license (NFR-03) and update docs/governance/DEPENDENCY_LICENSES.md and Makefile."; \
+			echo "ERROR: Module '$$mod' is linked into a shipped binary but is not on the approved permissive allowlist."; \
+			echo "Verify its SPDX license (NFR-03), then update docs/governance/DEPENDENCY_LICENSES.md section 4 and APPROVED_MODULES in this Makefile."; \
 			exit 1; \
 		fi; \
 	done
 	@if command -v $(GO_LICENSES) >/dev/null 2>&1; then \
 		$(GO_LICENSES) check ./cmd/moaj --disallowed_types=forbidden,restricted,reciprocal,unknown; \
+	else \
+		echo "INFO: go-licenses not installed locally; CI runs it. Install: go install github.com/google/go-licenses@latest"; \
 	fi
 	@echo "OK: All distributed Go modules satisfy the permissive license allowlist (NFR-03)."
 

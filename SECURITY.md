@@ -41,7 +41,7 @@ If you discover a security vulnerability, authorization bypass, cryptographic fl
 All code in MOAJ must adhere to the following non-negotiable security invariants:
 
 ### 3.1 Secret Handling & `_FILE` Support
-- Production secrets (`MOAJ_DATABASE_URL`, `MOAJ_VALKEY_ADDR`, `MOAJ_METRICS_TOKEN`, `MOAJ_LICENSE_FILE`, and legacy `IMS_*` aliases) must never be hardcoded in source files or committed to version control.
+- Production secrets (`MOAJ_DATABASE_URL`, `MOAJ_VALKEY_ADDR`, `MOAJ_METRICS_TOKEN`, `MOAJ_LICENSE_FILE`, and their `_FILE` variants) must never be hardcoded in source files or committed to version control.
 - `internal/config` supports reading sensitive values from mounted files via the `*_FILE` environment variable convention (for example, `MOAJ_DATABASE_URL_FILE=/run/secrets/db_url` or `MOAJ_METRICS_TOKEN_FILE=/run/secrets/metrics_token`), compatible with Docker/Kubernetes secret mounts.
 - Setting both a direct variable and its `*_FILE` variant simultaneously is rejected as an explicit configuration conflict to prevent ambiguous credential precedence.
 - In `production` mode (`MOAJ_ENV=production`), insecure default credentials, wildcard CORS origins (`*`), and unprotected `/metrics` endpoints are rejected at startup.

@@ -16,7 +16,7 @@ MOAJ uses a **Single-Repository Open-Core** layout (`IMS-GOV-01` §1). Contribut
 | `internal/` | Community (MIT) | Core domain packages (`config`, `api`, `auth`, `workflow`, `intercept`, `hr`, `db`, `worker`, `notify`, `gdpr`, `realtime`, `observability`, `enterprise`). |
 | `db/` | Community (MIT) | Embedded Goose SQL migrations (`db/migrations/`) and SQLc query files (`db/query/`). |
 | `ui/` | Community (MIT) | SvelteKit static frontend (`moaj-ui`) embedded into the Go binary. |
-| `docs/`, `deploy/` | Community (MIT / CC-BY-4.0) | Architecture Decision Records (`docs/adr/`), governance docs (`docs/governance/`), operations runbooks (`docs/operations/`), and container/monitoring manifests. |
+| `docs/`, `deploy/` | Community (MIT) | Architecture Decision Records (`docs/adr/`), governance docs (`docs/governance/`), operations runbooks (`docs/operations/`), and container/monitoring manifests. `IMS-GOV-01` §1 additionally calls for `CC-BY-4.0` on documentation prose, but no `CC-BY-4.0` notice exists in the repository yet, so everything here is MIT today (tracked in `docs/governance/LICENSING_BOUNDARIES.md` §5). |
 | `ee/` | **Enterprise (Proprietary EULA)** | Enterprise-only modules (`ee/auth/`, `ee/rbac/`, `ee/audit/`, `ee/license/`) governed exclusively by `ee/EULA.md`. |
 
 See `docs/governance/LICENSING_BOUNDARIES.md` for full details on build-tag separation and licensing rules.
@@ -34,14 +34,25 @@ Prior to merging any pull request from an external contributor:
 2. **Grant of Rights:** Under the CLA (`IMS-GOV-01` §2), the contributor retains copyright ownership of their contribution while granting the project owner an **irrevocable, perpetual, worldwide, royalty-free copyright and patent license with the right to sublicense and distribute** the contributed code under both:
    - The open-source **MIT License** (`LICENSE`), and
    - The commercial **MOAJ Enterprise EULA** (`ee/EULA.md`).
-3. **Automated PR Gate:** The GitHub Actions pipeline (`.github/workflows/ci-license-gate.yml`) and CLA check verify CLA status on external pull requests before merge.
+3. **How this is checked today (please read - the automated check is not verification):** the
+   `cla-acknowledgement-prompt` job in `.github/workflows/ci-license-gate.yml` only looks for this exact
+   sentence in your pull-request description:
+
+   ```text
+   I have read the CLA Document and I hereby sign the CLA
+   ```
+
+   That sentence is self-asserted and unauthenticated; no signature is recorded anywhere, and the check
+   proves nothing on its own. A maintainer must separately confirm an executed ICLA/CCLA before merging.
+   Hosted CLA-bot enforcement is tracked under `D17` in `docs/governance/LICENSING_BOUNDARIES.md` §5, and
+   until it is configured, external pull requests are not merged on the strength of the CI check alone.
 
 ---
 
 ## 3. Development Prerequisites
 
-- **Go Toolchain:** Go `1.26+` (matching `go.mod`, module path `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` per `D1`).
-- **Formatting & Static Analysis:** `gofmt` (standard library), `go vet`, `staticcheck`, and `govulncheck`.
+- **Go Toolchain:** Go `1.26.x`, latest patch (`go.mod` declares `go 1.26.0` as a minimum, not a pin; CI uses `go-version: 1.26.x`). Module path `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` per `D1`.
+- **Formatting & Static Analysis:** `gofmt` (standard library), `go vet`, `staticcheck`, and `govulncheck`. Run `make vet` and `make staticcheck`: both run twice, once with default tags and once with `-tags ee`, because files behind `//go:build ee` are invisible to a default-tag analysis.
 - **Database & Queue (Phase 2+ / Phase 5+):** PostgreSQL 16 and Valkey (BSD-3-Clause).
 - **Third-Party Dependency Policy (`NFR-03`):**
   - Distributed runtime dependencies must use approved permissive licenses (`MIT`, `BSD-2-Clause`, `BSD-3-Clause`, `Apache-2.0`, `ISC`, `PostgreSQL`).
