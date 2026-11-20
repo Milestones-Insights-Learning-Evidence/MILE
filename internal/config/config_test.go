@@ -69,7 +69,7 @@ func TestLegacyAndUnprefixedVariablesAreIgnored(t *testing.T) {
 		t.Fatalf("MOAJ_DATABASE_URL was overridden: %q", c.DatabaseURL)
 	}
 	if c.Env != "development" || c.HTTPAddr != "127.0.0.1:8000" || c.AppDomain != "localhost" ||
-		c.ValkeyAddr != "localhost:6379" || c.LicenseFile != "/etc/moaj/moaj_enterprise.lic" ||
+        c.LicenseFile != "/etc/moaj/moaj_enterprise.lic" ||
 		c.ReadTimeout != 10*time.Second || c.IdleTimeout != 60*time.Second {
 		t.Fatalf("legacy or unprefixed variable leaked into configuration: %#v", c)
 	}

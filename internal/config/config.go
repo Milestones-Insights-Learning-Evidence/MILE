@@ -22,7 +22,6 @@ type Config struct {
 	AppDomain         string
 	HTTPAddr          string
 	DatabaseURL       string
-	ValkeyAddr        string
 	LicenseFile       string
 	MetricsToken      string
 	ReadTimeout       time.Duration
@@ -54,7 +53,6 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 		AppDomain:    read("localhost", "MOAJ_APP_DOMAIN"),
 		HTTPAddr:     read("127.0.0.1:8000", "MOAJ_HTTP_ADDR"),
 		DatabaseURL:  read("", "MOAJ_DATABASE_URL"),
-		ValkeyAddr:   read("localhost:6379", "MOAJ_VALKEY_ADDR"),
 		MetricsToken: read("", "MOAJ_METRICS_TOKEN"),
 	}
 	var err error
@@ -117,9 +115,6 @@ func (c Config) Validate() error {
 	host, port, err := net.SplitHostPort(c.HTTPAddr)
 	if err != nil || !validPort(port) {
 		problems = append(problems, errors.New("MOAJ_HTTP_ADDR must be a host:port address with port 1-65535"))
-	}
-	if host, port, err := net.SplitHostPort(c.ValkeyAddr); err != nil || host == "" || !validPort(port) {
-		problems = append(problems, errors.New("MOAJ_VALKEY_ADDR must be a host:port address with port 1-65535"))
 	}
 	if c.DatabaseURL != "" {
 		u, err := url.Parse(c.DatabaseURL)
