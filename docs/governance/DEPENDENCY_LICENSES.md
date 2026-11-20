@@ -1,25 +1,25 @@
 # Third-Party Dependency License Inventory & Policy (`DEPENDENCY_LICENSES.md`)
 
-**Document Reference:** `IMS-BRD-1.0` (`NFR-03`), `IMS-GOV-01` §5.4 & §6, `docs/IMPLEMENTATION_PLAN.md` §3.2 (`D1`–`D3`) & §7 (Phase 0)  
+**Document Reference:** `IMS-BRD-1.0` (`NFR-03`), `IMS-GOV-01` §5.4 & §6, `docs/IMPLEMENTATION_PLAN.md` Appendix A (`D1`–`D3`), §7 (Phase 0) and §8  
 **Status:** Active & Enforced via `make license-check` and `.github/workflows/ci-license-gate.yml`
 
 ---
 
 ## 1. Foundational Decisions (`D1`, `D2`, `D3`)
 
-Per `docs/IMPLEMENTATION_PLAN.md` §3.2 and §7 (Phase 0), the following foundational naming, module, toolchain, and infrastructure licensing decisions are resolved and recorded:
+Per `docs/IMPLEMENTATION_PLAN.md` Appendix A and §7 (Phase 0), the following foundational naming, module, toolchain, and infrastructure licensing decisions are recorded:
 
 | Decision ID | Resolution | Rationale & Compliance Impact |
 | :--- | :--- | :--- |
-| **`D1`** (Project Name & Module Path) | Official Name: **MOAJ - Mentor of all Jacks** (`cmd/moaj`, `bin/moaj`, `MOAJ_*` env vars, `/etc/moaj/moaj_enterprise.lic`, `moaj_*` metrics); Go Module Path: **`github.com/MOAJ-Mentor-of-all-Jacks/MOAJ`** | Establishes the official product identity **MOAJ (Mentor of all Jacks)** and aligns `go.mod` with the canonical GitHub organization repository `https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ.git` (there are no unprefixed, `IMS_*`, or `MINTERN_*` aliases: only `MOAJ_*` variables and their `_FILE` variants are read). |
+| **`D1`** (Project Name & Module Path) | Official Name: **MOAJ - Mentor of all Jacks** (`cmd/moaj`, `bin/moaj`, `MOAJ_*` env vars, `/etc/moaj/moaj_enterprise.lic`, `moaj_*` metrics); Go Module Path: **`github.com/MOAJ-Mentor-of-all-Jacks/MOAJ`** | Establishes the official product identity **MOAJ (Mentor of all Jacks)** and aligns `go.mod` with the canonical GitHub organization repository `https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ.git` (only `MOAJ_*` variables and their `_FILE` variants are read). |
 | **`D2`** (Go Toolchain & CI Policy) | **`go 1.26.0` in `go.mod` as a minimum, with no `toolchain` line**; CI selects the toolchain with `go-version: 1.26.x` and `check-latest: true` on Linux with `-race` enabled | Local environment reports `go1.27.2 windows/amd64`, which is treated as machine evidence rather than upstream support policy. The `go` directive is a language/API floor, not a build pin: resolving it verbatim via `go-version-file` would install exactly `1.26.0` and inherit standard-library advisories fixed in later patches, which `govulncheck` would then report. CI therefore pins the minor series and takes the latest patch. |
-| **`D3`** (In-Memory Queue Broker) | **Valkey (`BSD-3-Clause`, pinned `valkey/valkey:8.0-alpine` for Phase 5)** selected over Redis (`RSALv2` / `SSPLv1` / `AGPLv3`) | `IMS-BRD-1.0` `NFR-03` requires that all core infrastructure components use permissive open-source licenses (`MIT`, `Apache-2.0`, `BSD`, `PostgreSQL`). Redis 7.4+ transitioned to dual `RSALv2`/`SSPLv1` (and Redis 8 added `AGPLv3`), which are non-permissive/copyleft. **Valkey** is a Linux Foundation-hosted `BSD-3-Clause` fork of Redis 7.2.4 whose project documentation states that it retains the Redis wire protocol. MOAJ makes **no compatibility claim beyond that**: whether `github.com/hibiken/asynq` (`MIT`) and `github.com/redis/go-redis/v9` (`BSD-2-Clause`) work against Valkey for the queue and scheduler features MOAJ needs is **untested and must be established by Phase 5 integration tests** before this decision is relied on. Neither library is in `go.mod` yet. |
+| **`D3`** (In-Memory Queue Broker) | **Withdrawn.** No Redis-family dependency: background jobs, scheduling and the notification outbox run in PostgreSQL inside the server process (DEC25; ADR-05). | Redis 7.4+ moved to `RSALv2`/`SSPLv1` (and Redis 8 added `AGPLv3`), which `NFR-03` forbids. Removing the separate broker meets `NFR-03` without depending on any Redis-compatible fork, and leaves PostgreSQL as the one service to run, back up and secure. The earlier broker choice is recorded as superseded in ADR-01 and `docs/CHANGELOG.md`. |
 
 ---
 
 ## 2. Distributed Dependencies vs. Non-Distributed Build/CI Tools
 
-As required by `docs/IMPLEMENTATION_PLAN.md` §7 (Phase 0: *"Separate build tools from shipped artifacts. Do not infer license effects solely from a dependency appearing in a tool manifest"*), MOAJ strictly distinguishes between two categories of third-party software:
+Because `docs/IMPLEMENTATION_PLAN.md` §8 requires the shipped dependency licences to be checked for each release, MOAJ strictly distinguishes between two categories of third-party software:
 
 ### 2.1 Distributed Runtime Dependencies (Strict Permissive Gate)
 - **Definition:** Any Go module (`go.mod`), JavaScript/TypeScript package (`ui/package.json`), CSS/font asset, or embedded binary artifact that is compiled into, linked with, or bundled inside the shipped `moaj` single binary (Community `bin/moaj` or Enterprise `bin/moaj-ee`) or container image.
@@ -77,8 +77,7 @@ Every direct and indirect module present in `go.mod` as of Phase 0/Phase 1 has b
 | Component | Planned / Active Version | SPDX License | Role in MOAJ |
 | :--- | :--- | :--- | :--- |
 | **Go Standard Library & Runtime** | `1.26+` | `BSD-3-Clause` | Single-binary HTTP server (`moaj`), `log/slog`, `crypto/*`, `embed`. |
-| **PostgreSQL** | `16` | `PostgreSQL` | Primary ACID relational store, `JSONB` rubrics, `LISTEN/NOTIFY`. |
-| **Valkey** | `8.0` | `BSD-3-Clause` | Redis-wire-protocol in-memory store intended to back Asynq queues & schedules (Phase 5; compatibility not yet integration-tested - see `D3`). |
+| **PostgreSQL** | `16` | `PostgreSQL` | Primary ACID relational store, `JSONB` rubrics, `LISTEN/NOTIFY`, and the background job queue (`FOR UPDATE SKIP LOCKED`). The only service MOAJ depends on. |
 | **SvelteKit (`@sveltejs/kit`, `@sveltejs/adapter-static`)** | `2.x` (Phase 4) | `MIT` | Static single-page frontend (`moaj-ui`) embedded into the Go binary. |
 
 ---

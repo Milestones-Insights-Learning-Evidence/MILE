@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to **MOAJ (Mentor of all Jacks)**. MOAJ is a self-hosted, open-core intern management system that converts everyday task workflow movements into transparent, reviewable HR and mentorship evidence.
 
-Before submitting a pull request, please review the repository boundaries, Contributor License Agreement (CLA) policy, build tags, and verification gates below.
+Before submitting a pull request, please review the repository boundaries, the Developer Certificate of Origin (DCO) sign-off rule, build tags, and verification gates below.
 
 ---
 
@@ -12,8 +12,8 @@ MOAJ uses a **Single-Repository Open-Core** layout (`IMS-GOV-01` §1). Contribut
 
 | Path | Edition & License | Description |
 | :--- | :--- | :--- |
-| `cmd/moaj/` | Community (MIT) | Single-binary CLI entry point (`moaj serve`, `moaj version`, `moaj help`, and future `worker`, `migrate` subcommands). |
-| `internal/` | Community (MIT) | Core domain packages (`config`, `api`, `auth`, `workflow`, `intercept`, `hr`, `db`, `worker`, `notify`, `gdpr`, `realtime`, `observability`, `enterprise`). |
+| `cmd/moaj/` | Community (MIT) | Single-binary CLI entry point (`moaj serve`, `moaj version`, `moaj help`; `migrate`, `backup`, `restore` and others in later phases). |
+| `internal/` | Community (MIT) | Today: `config`, `api`, `observability`, `enterprise`. Planned (plan §6.1): `auth`, `workflow`, `reason`, `hr`, `db`, `jobs`, `notify`, `retention`, `backup`, `realtime`. |
 | `db/` | Community (MIT) | Embedded Goose SQL migrations (`db/migrations/`) and SQLc query files (`db/query/`). |
 | `ui/` | Community (MIT) | SvelteKit static frontend (`moaj-ui`) embedded into the Go binary. |
 | `docs/`, `deploy/` | Community (MIT) | Architecture Decision Records (`docs/adr/`), governance docs (`docs/governance/`), operations runbooks (`docs/operations/`), and container/monitoring manifests. `IMS-GOV-01` §1 additionally calls for `CC-BY-4.0` on documentation prose, but no `CC-BY-4.0` notice exists in the repository yet, so everything here is MIT today (tracked in `docs/governance/LICENSING_BOUNDARIES.md` §5). |
@@ -23,29 +23,25 @@ See `docs/governance/LICENSING_BOUNDARIES.md` for full details on build-tag sepa
 
 ---
 
-## 2. Mandatory Contributor License Agreement (CLA) Policy (`IMS-GOV-01` §2)
+## 2. Developer Certificate of Origin (DCO)
 
-### Why a DCO Alone Is Insufficient
-Relying solely on a Developer Certificate of Origin (`Signed-off-by` / DCO) is legally insufficient for a single-repository open-core architecture. Because the project owner compiles community contributions from `cmd/`, `internal/`, `db/`, and `ui/` directly into both the MIT-licensed Community binary (`bin/moaj`) and the commercial Enterprise Edition binary (`bin/moaj-ee`, linked with `ee/`), the project owner requires explicit rights to distribute contributed code under both licensing regimes.
+Every commit must be signed off under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). By signing off, you certify that you wrote the change, or otherwise have the right to submit it, under this repository's MIT License.
 
-### CLA Requirement for External Contributors
-Prior to merging any pull request from an external contributor:
-1. The contributor must execute the **Individual Contributor License Agreement (ICLA)** or, if contributing on behalf of an employer, an authorized representative must execute the **Corporate Contributor License Agreement (CCLA)**.
-2. **Grant of Rights:** Under the CLA (`IMS-GOV-01` §2), the contributor retains copyright ownership of their contribution while granting the project owner an **irrevocable, perpetual, worldwide, royalty-free copyright and patent license with the right to sublicense and distribute** the contributed code under both:
-   - The open-source **MIT License** (`LICENSE`), and
-   - The commercial **MOAJ Enterprise EULA** (`ee/EULA.md`).
-3. **How this is checked today (please read - the automated check is not verification):** the
-   `cla-acknowledgement-prompt` job in `.github/workflows/ci-license-gate.yml` only looks for this exact
-   sentence in your pull-request description:
+Sign off by committing with `-s`:
 
-   ```text
-   I have read the CLA Document and I hereby sign the CLA
-   ```
+```sh
+git commit -s -m "fix(p2): retry a transaction on serialization failure"
+```
 
-   That sentence is self-asserted and unauthenticated; no signature is recorded anywhere, and the check
-   proves nothing on its own. A maintainer must separately confirm an executed ICLA/CCLA before merging.
-   Hosted CLA-bot enforcement is tracked under `D17` in `docs/governance/LICENSING_BOUNDARIES.md` §5, and
-   until it is configured, external pull requests are not merged on the strength of the CI check alone.
+This adds a trailer with the name and email from your Git configuration:
+
+```text
+Signed-off-by: Your Name <you@example.com>
+```
+
+CI rejects a pull request that contains a commit without a sign-off. To fix one, amend the last commit with `git commit --amend -s --no-edit`, or sign off a whole branch with `git rebase --signoff main`, then force-push the branch.
+
+There is no Contributor License Agreement. Contributions stay under the MIT License. The Enterprise edition is built in a separate private repository that uses this repository as an MIT-licensed dependency, so it never needs to relicense contributed code.
 
 ---
 
@@ -53,7 +49,8 @@ Prior to merging any pull request from an external contributor:
 
 - **Go Toolchain:** Go `1.26.x`, latest patch (`go.mod` declares `go 1.26.0` as a minimum, not a pin; CI uses `go-version: 1.26.x`). Module path `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` per `D1`.
 - **Formatting & Static Analysis:** `gofmt` (standard library), `go vet`, `staticcheck`, and `govulncheck`. Run `make vet` and `make staticcheck`: both run twice, once with default tags and once with `-tags ee`, because files behind `//go:build ee` are invisible to a default-tag analysis.
-- **Database & Queue (Phase 2+ / Phase 5+):** PostgreSQL 16 and Valkey (BSD-3-Clause).
+- **Database (Phase 2+):** PostgreSQL 16. PostgreSQL is the only service MOAJ depends on: background jobs, scheduling and the notification outbox also run on it (Phase 5).
+- **Running tests on Windows:** Smart App Control blocks the unsigned test binaries that `go test` builds. Run the suite in a Linux container instead, which also matches CI: `docker run --rm -v "${PWD}:/src" -v gomod:/go/pkg/mod -w /src golang:1.26 go test -race ./...`
 - **Third-Party Dependency Policy (`NFR-03`):**
   - Distributed runtime dependencies must use approved permissive licenses (`MIT`, `BSD-2-Clause`, `BSD-3-Clause`, `Apache-2.0`, `ISC`, `PostgreSQL`).
   - Strongly reciprocal or source-available copyleft licenses (`GPL-2.0`, `GPL-3.0`, `AGPL-3.0`, `LGPL-*`, `SSPL-*`, `RSAL-*`, `EUPL-*`) are strictly prohibited in distributed artifacts.

@@ -52,3 +52,18 @@ Findings F1-F11 from the 2026-11-06 review, applied before the first push to the
 | F10 | Partly addressed. Verified locally on Windows: `gofmt`, `go vet` (both tag sets), `go build` (both editions), `go test -count=1` (both tag sets), `staticcheck` (both tag sets), `govulncheck`, boundary-check, the license allowlist, YAML/JSON parse checks, and runbook-anchor resolution. Still unverified: `-race` (needs cgo/gcc, absent locally), `promtool check config/rules`, `go-licenses`, and a live Grafana import. See the outstanding-verification note in `IMPLEMENTATION_PLAN.md` §7 (Phase 1). |
 | - | **Found while verifying F10 (not in the original review):** `make license-check` would have failed on the first CI run. It gated `go list -m all`, which reports the pruned module graph including ~23 test-only dependencies of dependencies (`stretchr/testify`, `alecthomas/kingpin`, `json-iterator/go`, ...) that are never linked into `bin/moaj`. It now gates `go list -deps` over both editions at `GOOS=linux GOARCH=amd64`, which resolves to exactly the ten modules in the allowlist. |
 | F11 | Governance claims reworded to what is verifiable: Valkey/Asynq compatibility is stated as untested until Phase 5, CLA/PolyForm/ELv2 reuse terms are no longer asserted, and `deploy/` is MIT. |
+
+---
+
+## Phase 0 realignment - 2026-11-20
+
+Work toward the reopened Phase 0 gate (plan v4.0, O30). In progress on branch `feat/p0-realignment`.
+
+| Change | Detail |
+| --- | --- |
+| Plan v4.0 | Replaces version 2.1 at the same stable path, `docs/IMPLEMENTATION_PLAN.md`; the version is in its header. The former `D1`-`D17` are now Appendix A, so references to "§3.2 `D…`" in older documents mean Appendix A. Gate records move from the plan to `docs/gates/`. |
+| ADR-07, ADR-08 | Added: boards, columns and moves; secrets and keys. `docs/SCHEMA.md` added (the plan calls it `db/SCHEMA.md`; it moves next to the migrations in Phase 2). |
+| Valkey removed (`D3` withdrawn, DEC25) | `MOAJ_VALKEY_ADDR` removed from `internal/config` and its tests. Removed from README, SECURITY, CONTRIBUTING, `DEPENDENCY_LICENSES.md` and `docs/operations/monitoring.md`; ADR-01 records `D3` as withdrawn. Background work will run in PostgreSQL inside the server process (ADR-05). |
+| CLA replaced by DCO | `CONTRIBUTING.md` §2 and `LICENSING_BOUNDARIES.md` now require a DCO sign-off on every commit; the CLA, the ICLA/CCLA comparison and the CLA-bot checklist items are gone. |
+| `SECURITY.md` rewritten | Separates what the code enforces today from what later phases will enforce, and states the limits plainly (DEC72, DEC75). Removes claims the code did not support: wildcard-CORS and default-credential rejection, a 1-6 year retention window, and interns being unable to choose a reason. |
+| `docs/operations/monitoring.md` | `428` describes the backward-move prompt only (the other triggers are O31); `OTHER` reason text removed (DEC11). |

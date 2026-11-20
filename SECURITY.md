@@ -1,66 +1,76 @@
-# Security Policy (`SECURITY.md`)
+# Security Policy
 
-**MOAJ (Mentor of all Jacks)** processes sensitive personnel evaluation records, mentorship notes, and organizational workflow data. Security, role isolation, secret hygiene, and data privacy are core architectural requirements across both Community and Enterprise editions.
+**MOAJ (Mentor of all Jacks)** will hold personnel evidence about interns: task history, the reasons given for moves, review records and mentor notes. This policy says how to report a vulnerability, what the code enforces today, and what it is designed to enforce in later phases. It does not claim protection that has not been built and tested.
 
 ---
 
-## 1. Supported Versions & Development Status
+## 1. Supported versions
 
-MOAJ is currently under active staged development according to `docs/IMPLEMENTATION_PLAN.md`:
+MOAJ has not had a release. Development follows [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
-| Version / Phase | Status | Security Updates |
+| Version | Status | Security fixes |
 | :--- | :--- | :--- |
-| `main` (Phase 0 – Phase 1 foundation) | Active development | Supported via repository patches |
-| Community `v1.0.x` (Target: Phase 8 gate) | Planned first production release | Full security advisory & patch support upon release |
-| Enterprise `v1.0.x-ee` (Target: Phase 9 gate) | Planned commercial release | Full security advisory & patch support upon release |
+| `main` (pre-release, Phases 0 to 2) | In development, not for production use | Fixed on `main` |
+| Community `v1.0.x` (Phase 8 gate) | Planned first release | Security advisories and patch releases |
+| Enterprise (Phase 9 gate) | Planned | Security advisories and patch releases |
+
+MOAJ does not check for updates. Security releases will be announced through this repository's security advisories and release feed.
 
 ---
 
-## 2. Reporting a Vulnerability
+## 2. Reporting a vulnerability
 
-**Please do NOT report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
+**Do not report vulnerabilities in public issues, discussions or pull requests.**
 
-If you discover a security vulnerability, authorization bypass, cryptographic flaw, or personnel data leak:
+Use **GitHub Private Vulnerability Reporting**: on `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ`, open `Security` → `Report a vulnerability`.
 
-1. **Private Reporting Channel:**
-   - Use **GitHub Private Vulnerability Reporting** (`Security` -> `Report a vulnerability` on the `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` repository) so the maintainers can triage and remediate the issue confidentially.
-2. **What to Include:**
-   - Affected component or package path (e.g., `cmd/moaj`, `internal/api`, `internal/config`, `internal/auth`, `ee/license`).
-   - Build variant (`Community` default build vs. `Enterprise` `-tags ee` build).
-   - Step-by-step reproduction instructions or proof-of-concept test case.
-   - Potential impact on confidentiality (e.g., cross-intern data exposure), integrity (e.g., ledger tampering), or availability.
-3. **Response & Coordinated Disclosure Expectations:**
-   - **Acknowledgment:** Within **48 hours** of submission.
-   - **Triage & Remediation Plan:** Within **5 business days**.
-   - **Coordinated Disclosure:** We ask reporters to maintain confidentiality until a patch is released and operators have had a reasonable window to upgrade. Credit will be given in the security advisory unless anonymity is requested.
+Please include:
+
+- the affected package or path (for example `internal/api` or `internal/config`) and the commit you tested;
+- the steps to reproduce it, or a failing test;
+- the impact: who could read or change what they should not, or what stops working.
+
+What to expect:
+
+- **Acknowledgement:** we aim to reply within 48 hours.
+- **Assessment and plan:** we aim to reply within 5 business days.
+- **Disclosure:** please keep the report confidential until a fix is released and operators have had reasonable time to upgrade. We credit reporters in the advisory unless they prefer not to be named.
+
+Out of scope: vulnerabilities that need an attacker who already controls the server, the database owner role or the master key (see section 5), and findings in the source PDFs under `docs/specs/`.
 
 ---
 
-## 3. Core Security Architecture Principles
+## 3. What the code enforces today (Phase 1)
 
-All code in MOAJ must adhere to the following non-negotiable security invariants:
+| Area | Behaviour |
+| --- | --- |
+| Configuration | Only `MOAJ_*` variables are read. Empty or malformed values stop start-up with an error instead of falling back to a default. Error messages never include the value of a setting, so a malformed database URL cannot leak its password into logs. |
+| Secret files | Secret-capable settings accept a `*_FILE` variant for Docker and Kubernetes secret mounts (at most 64 KiB). Setting both the variable and its `_FILE` variant is rejected. |
+| Metrics | `/metrics` requires a bearer token of at least 32 characters in production or whenever the server listens beyond loopback, compared in constant time. Metric labels are bounded: route patterns, methods, status codes. |
+| HTTP | Security headers on every response: `Content-Security-Policy` (own origin only), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a `Permissions-Policy` that denies camera, microphone and location, and `Strict-Transport-Security` when MOAJ itself terminates TLS (a reverse proxy that terminates TLS must set it). Request bodies are size-limited and every phase of a request has a timeout. Error responses use RFC 9457 problem details and `Cache-Control: no-store`. |
+| Logs | Structured JSON. The configuration logs whether the database and metrics token are set, never their values. |
 
-### 3.1 Secret Handling & `_FILE` Support
-- Production secrets (`MOAJ_DATABASE_URL`, `MOAJ_VALKEY_ADDR`, `MOAJ_METRICS_TOKEN`, `MOAJ_LICENSE_FILE`, and their `_FILE` variants) must never be hardcoded in source files or committed to version control.
-- `internal/config` supports reading sensitive values from mounted files via the `*_FILE` environment variable convention (for example, `MOAJ_DATABASE_URL_FILE=/run/secrets/db_url` or `MOAJ_METRICS_TOKEN_FILE=/run/secrets/metrics_token`), compatible with Docker/Kubernetes secret mounts.
-- Setting both a direct variable and its `*_FILE` variant simultaneously is rejected as an explicit configuration conflict to prevent ambiguous credential precedence.
-- In `production` mode (`MOAJ_ENV=production`), insecure default credentials, wildcard CORS origins (`*`), and unprotected `/metrics` endpoints are rejected at startup.
+---
 
-### 3.2 Zero Secrets & Zero PII in Logs and Metrics
-- **Structured Logs (`log/slog`):** Logs correlate activity using request IDs and job IDs. Passwords, bearer tokens, session cookies, connection strings, and personnel evaluation text (`OTHER` explanations, private 1-on-1 mentor notes) must never be written to application logs.
-- **Prometheus Metrics (`/metrics`, `moaj_*`):** Metrics (`moaj_build_info`, `moaj_process_start_time_seconds`, `moaj_http_requests_total`, `moaj_http_request_duration_seconds`, `moaj_http_requests_in_flight`) use strictly bounded cardinality labels (route templates, HTTP methods, status codes, operation names). High-cardinality or identifying values (`user_id`, `intern_id`, `task_id`, email addresses, raw URLs) are strictly forbidden in metric labels.
-- **Protected Telemetry:** The `/metrics` endpoint requires bearer token authentication (`MOAJ_METRICS_TOKEN` validated via constant-time `subtle.ConstantTimeCompare`).
+## 4. Designed, not yet built
 
-### 3.3 Strict Role Isolation (`IMS-GOV-01` §5.3)
-- Interns (`INTERN`) have full visibility into their own Kanban board, tasks, and 30/60/90-day evaluation rubrics (preventing opaque or "secret surveillance" practices), but are strictly prohibited from reading or mutating any peer intern's tasks, revision counts, intercept classifications, or evaluations.
-- Mentors (`MENTOR`) and administrators (`DEPT_ADMIN`, `HR_ADMIN`, `SYS_ADMIN`) are scoped to their authorized organizational and department boundaries at the service and query layer—including HTTP APIs, SSE realtime streams, and CSV/JSON exports.
-- Interns cannot self-assign authoritative HR fault classifications when a workflow intercept (`HTTP 428 Precondition Required`) fires; fault attribution is restricted to authorized mentors/administrators.
+These rules are part of the design and will be tested at the gate of the phase shown. Until then, do not rely on them.
 
-### 3.4 Append-Only Ledger Integrity & Privilege-Separated Retention Erasure
-- During an intern cohort's active retention window (1–6 years), `transition_ledger` and `intercept_events` are append-only for the normal application database role (`SELECT`, `INSERT` only; no `UPDATE`, `DELETE`, `TRUNCATE`, or `DDL`).
-- Database migrations and retention-expiry erasure run under separate, least-privilege database roles.
-- At retention expiry, controlled erasure removes expired personal records, free-text notes, and identifying links rather than relying on naive UUID hashing alone (see `docs/IMPLEMENTATION_PLAN.md` §4 and `docs/adr/ADR-02-append-only-relational-ledger.md`).
+| Rule | Phase |
+| --- | --- |
+| Four database roles (migration, application, retention, backup), none a superuser. The application role cannot update, delete or truncate evidence. `serve` refuses to start as a privileged role. | 2 |
+| Argon2id passwords, server-side sessions, CSRF protection, rate limits. Session, invitation and reset tokens stored only as hashes. | 3 |
+| Authorisation checked at the service and query layer, including exports and realtime streams. An intern sees only their own records; a system administrator sees no evidence. | 3 |
+| Stored secrets and notebook notes encrypted with an operator-supplied master key ([ADR-08](docs/adr/ADR-08-secrets-and-keys.md)). | 3, 6 |
+| Logs, job payloads and notifications carry record identifiers, never names, emails or typed text. | 2 onward |
+| Finite retention that cannot be switched off, erasure under a separate database role, an erasure log, and encrypted backups. | 7 |
+| No outbound connection unless an administrator configures one, so MOAJ runs on an air-gapped network. No telemetry. | Every phase; release gate in 8 |
+| Enterprise licence verified offline, with no network call. | 9 |
 
-### 3.5 Offline Enterprise License Verification (`RS256`)
-- Enterprise Edition installations operate in air-gapped environments without external network calls ("phoning home").
-- License tokens (`/etc/moaj/moaj_enterprise.lic`) are verified offline using RSA-2048 (`RS256`) with a strict algorithm allowlist. Invalid or tampered signatures never receive an expiration grace period, while expired valid tokens enter a 14-day grace period and preserve admin recovery and HR compliance export access thereafter.
+---
+
+## 5. Limits we state plainly
+
+- **The database owner is trusted.** The evidence ledger is append-only for the application, but the first release has no tamper-evident chain. Someone with owner rights on the database can change records without detection.
+- **Encryption covers stored secrets, notebook notes and backups, and nothing else.** A private notebook is hidden inside the application, not from someone who holds both the database and the master key.
+- **Copies outside MOAJ are outside its control.** Exports someone has downloaded, and messages already delivered to email or Slack, are not erased by MOAJ's retention.

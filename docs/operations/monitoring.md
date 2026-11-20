@@ -11,7 +11,7 @@ Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.
 | Endpoint | Methods | Purpose | Phase 1 Behavior |
 | --- | --- | --- | --- |
 | `/healthz` | `GET`, `HEAD` | Process liveness probe | Returns `200 OK` with `{"status":"ok"}` as long as the HTTP server process is alive—even while draining during graceful shutdown. Do not point load-balancer traffic routing solely at `/healthz` if graceful drain isolation is required. |
-| `/readyz` | `GET`, `HEAD` | Traffic readiness probe | Returns `200 OK` with `{"status":"ready","scope":"http-runtime"}` during normal operation. Immediately switches to `503 Service Unavailable` (`application/problem+json`) when shutdown draining begins (`BeginShutdown()`). In Phase 2+, `/readyz` expands to verify PostgreSQL and Valkey connectivity. |
+| `/readyz` | `GET`, `HEAD` | Traffic readiness probe | Returns `200 OK` with `{"status":"ready","scope":"http-runtime"}` during normal operation. Immediately switches to `503 Service Unavailable` (`application/problem+json`) when shutdown draining begins (`BeginShutdown()`). In Phase 2+, `/readyz` expands to verify PostgreSQL connectivity. |
 | `/metrics` | `GET`, `HEAD` | Prometheus & OpenMetrics scrape endpoint | Exposes application, Go runtime, and OS process metrics from an instance-scoped Prometheus registry. Protected by loopback/token authorization rules (see below). |
 
 ### `/metrics` Authorization Rules
@@ -32,7 +32,7 @@ A container that serves published traffic must bind beyond loopback, so **the to
 - Supply `MOAJ_METRICS_TOKEN` (or `MOAJ_METRICS_TOKEN_FILE`) with at least 32 non-whitespace characters, for example `openssl rand -hex 32`. Prefer the `_FILE` form with a mounted secret so the value does not appear in `docker inspect` output or shell history.
 - Without it the process exits at startup with a configuration error rather than exposing an unauthenticated `/metrics`. This is intentional, not a bug.
 - `deploy/Dockerfile` publishes port `8000` (matching the default) and ships a `HEALTHCHECK` against `/healthz`. Because `/healthz` stays `200` while the process drains, orchestrators that need drain-aware routing must probe `/readyz` instead.
-- `deploy/docker-compose.yml` publishes PostgreSQL and Valkey on `127.0.0.1` only; its fixed development password must never be exposed on a routable interface.
+- `deploy/docker-compose.yml` publishes PostgreSQL on `127.0.0.1` only; its fixed development password must never be exposed on a routable interface.
 
 ---
 
@@ -61,13 +61,13 @@ To prevent cardinality explosions and protect intern/mentor privacy (`docs/IMPLE
 - **`route`**: Bounded to registered `http.ServeMux` route patterns (e.g., `"/healthz"`, `"/readyz"`, `"/metrics"`) or the constant `"unmatched"` when no pattern matches (`""` or catch-all `"/"`). Raw request URLs and path parameters are **never** emitted as metric labels.
 - **`method`**: Normalized via `observability.MethodLabel` to standard HTTP verbs (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `CONNECT`, `TRACE`) or `"OTHER"`. Arbitrary client-supplied method strings cannot create new time series.
 - **`status`**: Numeric HTTP status code (`200`, `404`, `409`, `428`, `500`, etc.).
-- **Prohibited Labels**: User IDs, intern/mentor names, emails, task IDs, cohort IDs, query strings, client IP addresses, and free-text notes (`OTHER` intercept explanations) must never appear in metric labels.
+- **Prohibited Labels**: User IDs, intern/mentor names, emails, task IDs, cohort IDs, query strings, client IP addresses, and any typed text (block notes, closure notes, comments) must never appear in metric labels.
 
 ### Distinguishing Expected Workflow Outcomes from Faults
 
 In MOAJ's workflow engine (Phase 4+):
 - **`409 Conflict`** indicates a stale board version when two users mutate a task concurrently.
-- **`428 Precondition Required`** indicates a synchronous workflow intercept (Trigger A backward move, Trigger B >3x SLA breach, or Trigger C blocked oscillation) prompting for a structured reason code.
+- **`428 Precondition Required`** indicates a backward move held until the person making it picks a reason code. Nothing is committed until they do. (Whether a time overrun or repeated blocking also prompts is open item O31.)
 - Neither `409` nor `428` is a system fault. Dashboards (`deploy/monitoring/grafana-dashboard.json`) and alert rules (`deploy/monitoring/alerts.yml`) separate `409|428` domain responses from other `4xx` client errors and `5xx` server faults.
 
 ---
@@ -148,7 +148,7 @@ which is why they are not used here.
 - **Triage Steps**:
   1. Open the **HTTP Request Latency (p50 / p95 / p99 by Route)** panel in Grafana (`uid: moaj-phase1-runtime`) to identify which `route` is slow.
   2. Inspect **Process CPU & GC Pause Duration** and **Memory Allocation & Resident Heap** to rule out host CPU throttling or memory pressure.
-  3. Correlate with **In-Flight HTTP Requests** to determine whether latency is caused by traffic saturation or downstream dependency contention (PostgreSQL/Valkey in Phases 2 and 5).
+  3. Correlate with **In-Flight HTTP Requests** to determine whether latency is caused by traffic saturation or downstream dependency contention (PostgreSQL, from Phase 2).
 
 ### `MOAJFrequentProcessRestarts`
 

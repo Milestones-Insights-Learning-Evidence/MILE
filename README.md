@@ -12,7 +12,7 @@ MOAJ follows a strict physical and compile-time separation between its MIT-licen
 
 | Path | License | Responsibility |
 | --- | --- | --- |
-| `cmd/moaj/` | MIT | Process entry point (`serve`, `version`, `help`; `worker` and `migrate` in later phases). |
+| `cmd/moaj/` | MIT | Process entry point (`serve`, `version`, `help`; `migrate`, `backup`, `restore` and others in later phases). Background work runs inside `serve`; there is no separate worker process. |
 | `internal/config/` | MIT | Validated environment configuration (`MOAJ_*` only), timeout bounds, and `_FILE` secret loading. |
 | `internal/api/` | MIT | HTTP server, graceful drain lifecycle, security headers, request limits, and RFC 9457 Problem Details. |
 | `internal/observability/` | MIT | Structured JSON logging (`log/slog`) and instance-scoped Prometheus metrics (`moaj_*`). |
@@ -27,13 +27,13 @@ MOAJ follows a strict physical and compile-time separation between its MIT-licen
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| **Phase 0** | Repository foundation, licensing boundaries, ADRs, CI, and strict config loader | **Complete** |
-| **Phase 1** | HTTP runtime (`moaj serve`), graceful drain, RFC 9457 errors, `/healthz`, `/readyz`, `/metrics`, Prometheus/Grafana baseline | **Complete** |
-| **Phase 2** | PostgreSQL persistence, retention-aware schema, append-only ledger triggers, and SQLc adapters | Planned |
-| **Phase 3** | Community authentication (Argon2id, sessions, CSRF, RBAC) and atomic first-run setup | Planned |
-| **Phase 4** | First usable workflow slice: Kanban board, task versioning (`409`), and synchronous intercepts (`428`) | Planned |
-| **Phase 5** | Background workers (`moaj worker`), Valkey/Asynq integration, and durable notification outbox | Planned |
-| **Phase 6–10** | HR translation & review snapshots, GDPR retention erasure, Community release packaging, and Enterprise Edition | Planned |
+| **Phase 0** | Repository foundation, licensing boundaries, ADRs, CI, and strict config loader | Reopened: realignment with plan v4.0 and a first green CI run |
+| **Phase 1** | HTTP runtime (`moaj serve`), graceful drain, RFC 9457 errors, `/healthz`, `/readyz`, `/metrics`, Prometheus/Grafana baseline | Reopened: re-verification in CI |
+| **Phase 2** | PostgreSQL persistence: schema, database roles, append-only protection, migrations, and SQLc adapters | Designed; not yet in the repository |
+| **Phase 3** | Authentication (Argon2id, sessions, CSRF, basic OIDC), roles and permissions, and first-run setup | Planned |
+| **Phase 4** | First usable workflow slice: the board, task versioning (`409`), and reason prompts on backward moves (`428`) | Planned |
+| **Phase 5** | Background work inside the server process: a PostgreSQL-backed job queue, scheduler, and notification outbox | Planned |
+| **Phase 6–10** | HR review experience, retention and backup, Community release, Enterprise edition, release automation | Planned |
 
 See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for full phase exit gates and specification amendments.
 
@@ -82,7 +82,7 @@ MOAJ validates all settings at startup and fails fast on empty explicit variable
 
 Secret-capable settings support `*_FILE` variants (up to 64 KiB, trailing `\r\n` stripped, mutually exclusive with the direct environment variable). Note that `MOAJ_LICENSE_FILE` is already a filesystem path and does not use a `_FILE` suffix.
 
-**Only `MOAJ_*` variables are read.** There are deliberately no unprefixed (`DATABASE_URL`, `HTTP_ADDR`, `REDIS_ADDR`, `APP_DOMAIN`), `IMS_*`, or `MINTERN_*` aliases: nothing has shipped under an earlier name, and honouring generic names would let another process's ambient `DATABASE_URL` reconfigure MOAJ. Such variables are ignored entirely - they neither override a `MOAJ_*` setting nor cause a startup conflict.
+**Only `MOAJ_*` variables are read.** Generic names such as `DATABASE_URL` or `HTTP_ADDR` are ignored entirely, so another process's environment can never reconfigure MOAJ: they neither override a `MOAJ_*` setting nor cause a startup conflict.
 
 | Variable | `_FILE` Support | Default | Description |
 | --- | --- | --- | --- |
@@ -91,7 +91,6 @@ Secret-capable settings support `*_FILE` variants (up to 64 KiB, trailing `\r\n`
 | `MOAJ_APP_DOMAIN` | Yes | `localhost` | Public hostname (without scheme or path). Must not be `localhost` / loopback when `MOAJ_ENV=production`. |
 | `MOAJ_HTTP_ADDR` | Yes | `127.0.0.1:8000` | TCP `host:port` bind address (`1–65535`). |
 | `MOAJ_DATABASE_URL` | Yes | *(empty)* | PostgreSQL connection URL (`postgres://` or `postgresql://`). Validated when set; required starting in Phase 2. |
-| `MOAJ_VALKEY_ADDR` | Yes | `localhost:6379` | Valkey `host:port` address (`1–65535`). Required by workers starting in Phase 5. |
 | `MOAJ_LICENSE_FILE` | No *(is a path)* | `/etc/moaj/moaj_enterprise.lic` | Path to the Enterprise `.lic` file (verified in Phase 9). |
 | `MOAJ_METRICS_TOKEN` | Yes | *(empty)* | Bearer token protecting `/metrics`. Must be `>= 32` non-whitespace characters when `MOAJ_ENV=production` or when `MOAJ_HTTP_ADDR` binds beyond loopback. |
 | `MOAJ_HTTP_READ_TIMEOUT_SEC` | Yes | `10` | Maximum duration (seconds) for reading an entire request. |
