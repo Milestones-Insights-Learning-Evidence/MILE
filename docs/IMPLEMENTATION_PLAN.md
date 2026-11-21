@@ -1,10 +1,10 @@
 # MILE - Production Implementation Plan
 
-Version: 4.0
-Updated: 2026-11-15
-Status: The design for Phase 2 is ahead of the code. ADR-07 and ADR-08 are written, and the Phase 2 schema is drafted and tested on PostgreSQL 16. None of it is in the repository yet, because CI has never run. Phase 0 is the next step and gates everything else. Phase 0 and Phase 1 remain reopened for re-verification.
+Version: 4.1
+Updated: 2026-11-21
+Status: The design for Phase 2 is ahead of the code. ADR-07 and ADR-08 are written, and the Phase 2 schema is drafted and tested on PostgreSQL 16. CI runs and passes. None of the Phase 2 work is in the repository yet: it enters after the rest of the Phase 0 gate. Phase 0 and Phase 1 remain reopened for re-verification.
 
-> **Naming.** MILE (Milestones, Insight, Learning & Evidence) is the working name. It replaces MOAJ but is not cleared yet (O19). The repository, module path, binary, `MOAJ_*` variables, database roles and database name keep their current names until the trademark search is clean (see Phase 0). This plan writes subcommands without the binary name for that reason.
+> **Naming.** The product is MILE (Milestones, Insight, Learning & Evidence). It replaces MOAJ (DEC83). Phase 0 renames everything that still says MOAJ, in one change. The Phase 2 schema already uses the `mile` prefix. This plan writes subcommands without the binary name.
 
 ## 1. Purpose and authority
 
@@ -15,7 +15,7 @@ This document replaces versions 2.1 to 3.2. It is a reorganised rewrite: every r
 Authority, in order:
 
 1. This plan.
-2. The decisions workbook, version 8. `DEC` and `O` identifiers refer to it.
+2. The decisions workbook, version 9. `DEC` and `O` identifiers refer to it.
 3. The ADRs in `docs/adr/`, and `db/SCHEMA.md` for the schema.
 4. The Data Handling and Integrity document, which states section 4 for customers.
 5. The four specification PDFs in `docs/specs/`, as source requirements subject to the amendments recorded here.
@@ -26,7 +26,7 @@ Do not silently resolve conflicts by mixing incompatible requirements. Record th
 
 | Item | State | Next step |
 | --- | --- | --- |
-| Phase 0, foundation | Reopened. CI has never run. Fixes F1 to F12 and the document updates are outstanding. | Do it now (O30). |
+| Phase 0, foundation | Reopened. CI runs and passes (DEC84). Fixes F1 to F12, the rename to MILE and the document updates are outstanding. | Do it now (O30). |
 | Phase 1, HTTP runtime | Reopened for re-verification in CI. | After Phase 0. |
 | Phase 2, persistence | Design done: data inventory, secrets inventory, ADR-07, ADR-08, seven migrations with 39 tables, 133 tests passing on PostgreSQL 16. Not in the repository. The threat model is not written. | Enters the repository after the Phase 0 gate. |
 | Phases 3 to 10 | Not started. | |
@@ -338,23 +338,23 @@ Phases are ordered by dependency, not by calendar. A gate must pass, with comman
 
 ### Phase 0 - Foundation realignment (reopened) - size M
 
-Outcome: a clean repository whose documents match the decisions, with a first green CI run.
+Outcome: a clean repository, named MILE, whose documents match the decisions, with CI green.
 
 Work:
 
-- Push and obtain a green CI run on Linux: build, format, vet, static analysis, vulnerability check, tests with the race detector.
+- Keep CI green on Linux: build, format, vet, static analysis, vulnerability check, tests with the race detector. It runs and passes (DEC84); record the run in `docs/gates/`.
 - Apply repository fixes F1 to F12 from the decisions workbook: the empty dashboard panel, legacy configuration aliases, the Go patch-level pin, the mislabelled CLA step, the container port and health check, document paths, database ports bound to all interfaces, static analysis of all files, plan record errors, overstated governance claims, and the security policy.
 - Remove Valkey: settings, Compose service, documentation and dependency inventory entries.
-- Replace `SECURITY.md` with the revised draft.
+- Replace `SECURITY.md` with the version written on 21 November.
 - Rewrite ADR-03 for the new reason design. Add ADR-04 (reason vocabularies, versions, confirmation, undo, with the rules of DEC51 to DEC53 and block approval under DEC69), ADR-05 (single process with a PostgreSQL queue) and ADR-06 (edition boundary and private Enterprise repository: exported bridge and entry point, Enterprise UI bundle, separate migration history, downgrade behaviour including retention). Correct ADR-01 paths and ADR-02 (the erasure log written by the database, its copy in the backup folder, the full replay on restore, backup lifetime).
 - Add ADR-07 and ADR-08 to `docs/adr/`. Both were written on 15 November. Copy this plan and the Data Handling draft into `docs/`.
 - Replace the CLA wording with DCO sign-off in `CONTRIBUTING.md` and CI.
 - Remove the `ee` build tag and folder from this repository. Move the bridge interfaces and stubs to an exported package and add the exported entry point (section 6.1). Add the out-of-module build test (section 6.4). Update `LICENSING_BOUNDARIES.md` and the boundary check.
-- Keep the product name in one constant and one environment prefix. When the trademark search is clean, rename the module path, command folder, binary, environment prefix, metric prefix, dashboard identifier, image, database roles, database name and the `moaj.erasure_*` settings in one change.
+- Rename from MOAJ to MILE in one change: module path, command folder, binary, environment prefix (`MILE_`), metric prefix, dashboard identifier, image and documents (DEC83). The Phase 2 schema already uses `mile` for roles, the database and the `mile.erasure_*` settings. Keep the product name in one constant afterwards.
 
-Gate: CI is green with the commands and results recorded; the alert rules and scrape configuration pass their checkers and the dashboard loads; no reference to Valkey, Asynq, `OTHER`, CLA or legacy aliases remains in code, configuration, Compose files, CI or documents that describe the current state (ADRs, the changelog and this plan's appendix may name them as superseded); the out-of-module bridge test builds; the documents agree with decisions workbook version 8.
+Gate: CI is green with the commands and results recorded; the alert rules and scrape configuration pass their checkers and the dashboard loads; no reference to Valkey, Asynq, `OTHER`, CLA or legacy aliases remains in code, configuration, Compose files, CI or documents that describe the current state (ADRs, the changelog and this plan's appendix may name them as superseded); the out-of-module bridge test builds; the documents agree with decisions workbook version 9.
 
-Depends on: nothing. The rename depends on O19 but does not block the gate.
+Depends on: nothing.
 
 ### Phase 1 - HTTP runtime and observability baseline (re-verify) - size S
 
@@ -525,14 +525,14 @@ Work:
 - Test backup and restore, migrations, recovery guidance and upgrades.
 - Write the size, memory, install-time and capacity targets into this plan, taken from the specifications. Define and run a capacity test; report results and bottlenecks. Resolve any target that is infeasible.
 - Updated threat model and the operator hardening guide; a documentation site built from `docs/`.
-- `support-bundle`: a redacted diagnostic file (version, configuration without secrets, migration state, job and outbox statistics), with a test that it holds no personal content. It only writes a local file. Support itself is by email, at an address that waits on the name (DEC73, O19).
+- `support-bundle`: a redacted diagnostic file (version, configuration without secrets, migration state, job and outbox statistics), with a test that it holds no personal content. It only writes a local file. Support itself is by email (DEC73).
 - Project files for a public repository: code of conduct, issue and pull-request templates, changelog, public roadmap, and a versioning policy that says which upgrade paths are supported and which versions receive security fixes.
 - Security releases are announced through the repository's advisories and release feed. The software contains no update check.
 - Publish a tagged release with checksums, a dependency inventory and signatures.
 
 Gate: a clean machine reaches a working board using only the install guide; critical end-to-end, authorisation, retention, restore, monitoring and load gates pass; no open critical defect.
 
-Public launch also requires, outside engineering: the employer release (O1), a cleared name and the rename (O19), the licence confirmed by a lawyer (DEC36), and the recorded result of the adoption test (O2).
+Public launch also requires, outside engineering: the employer release (O1), the licence confirmed by a lawyer (DEC36), and the recorded result of the adoption test (O2).
 
 Before the repository is made public (DEC34): remove business, pricing, employer and legal notes from every document, including this plan's non-engineering launch conditions, which move to the private workbook. Review the commit history for the same material and for earlier project names, and start from a clean history if any is found. Until the selling structure exists (DEC30, O28), the repository and the documentation site carry no donation or sponsorship links and no prices.
 
@@ -647,20 +647,20 @@ Other open items.
 
 | ID | Question | Needed by |
 | --- | --- | --- |
-| O30 | Phase 0: a green CI run and the document updates | Now |
+| O30 | Phase 0: the repository fixes, the rename to MILE and the document updates (CI already passes) | Now |
 | O18 | Threat model and operator hardening guide | Phase 2 (threat model); Phase 8 (guide) |
 | O2 | Adoption test: 10 interviews and a paper prototype with 5 mentor and intern pairs | Before the Phase 4 UI is final |
 | O31 | The other two prompt triggers (a task overrunning three times its time allowance; a third blocked entry in seven days): keep, change or drop. Recommendation: same rule as backward moves, built in Phase 5. | Phase 5 |
 | O29 | Data Handling and Integrity document | Draft done; final in Phase 7 |
 | O6 | Paid feature list and pricing | Phase 9 |
 | O26 | Licence file details and EULA | Phase 9 |
-| O1, O19, O28 | Employer release, name clearance, selling structure | Public launch (Phase 8) and first sale (Phase 9) |
+| O1, O28 | Employer release, selling structure | Public launch (Phase 8) and first sale (Phase 9) |
 | O21 | Legal checks that apply only if circumstances change | When a trigger happens |
 
 ## 11. Next implementation step
 
 1. Answer O59 to O66. The schema is final once O60, O63, O64 and O66 are settled.
-2. Phase 0: one green CI run, the repository fixes, the removal of Valkey, and the document changes listed above, including ADR-04 to ADR-06.
+2. Phase 0: the repository fixes, the rename to MILE, the removal of Valkey, and the document changes listed above, including ADR-04 to ADR-06.
 3. Phase 1: re-verify in CI.
 4. Phase 2: write the threat model, bring the migrations into the repository and build the persistence layer on them.
 
@@ -670,7 +670,7 @@ Start the validation track at the same time as Phase 2.
 
 | ID | Default | State | Phase |
 | --- | --- | --- | --- |
-| D1 | Project name and module path | Superseded: rename to MILE after clearance | 0 |
+| D1 | Project name and module path | Superseded: renamed to MILE (DEC83) | 0 |
 | D2 | Pin a supported Go release and CI matrix | In force; fix the patch-level pin (F3) | 0 |
 | D3 | Valkey | Withdrawn; no Redis-family dependency (DEC25) | 0 |
 | D4 | Email and password with Argon2id, database sessions, secure cookies, CSRF, rate limits | Accepted | 3 |
@@ -692,6 +692,9 @@ Start the validation track at the same time as Phase 2.
 
 | Area | Change | Source |
 | --- | --- | --- |
+| Name (4.1) | MILE is the product name; the rename is a Phase 0 work item with no condition; the schema uses the `mile` prefix | DEC83 |
+| CI (4.1) | CI runs and passes; Phase 0 keeps it green | DEC84 |
+| Security policy (4.1) | `SECURITY.md` rewritten against this plan and ADR-08 | Request of 21 Nov |
 | Structure | Rules regrouped by topic in section 3; a status section added; the change tables of versions 3.0 to 3.2 removed; "Decisions in force" split between sections 3 to 6; the secrets table moved to ADR-08 | Request of 15 Nov |
 | Data contract | Section 4 rewritten around the Data Handling document: personal data limited to name and work email, one subject per record, two retention periods, the full retention table, who starts export and erasure | DEC59 to DEC68 |
 | Sovereignty | Air-gapped operation and support by email stated; tracing kept, for the customer's own collector only; the outbound list completed | DEC73, DEC74 |
