@@ -1,4 +1,4 @@
-# MOAJ (Mentor of all Jacks) - Local Development & Evaluation Compose Stack
+# MILE (Milestones, Insight, Learning & Evidence) - Local Development & Evaluation Compose Stack
 # Implementation Target: Phase 2 (PostgreSQL 16), Phase 5 (Valkey + Worker), Phase 8 (Production Community release)
 # Reference: docs/adr/ADR-01-go-sqlc-single-binary.md (Decision D3: Valkey BSD-3-Clause)
 #
@@ -19,13 +19,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: moaj
-      POSTGRES_PASSWORD: moaj_dev_password
-      POSTGRES_DB: moaj
+      POSTGRES_USER: mile
+      POSTGRES_PASSWORD: mile_dev_password
+      POSTGRES_DB: mile
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moaj -d moaj"]
+      test: ["CMD-SHELL", "pg_isready -U mile -d mile"]
       interval: 10s
       timeout: 5s
       retries: 5

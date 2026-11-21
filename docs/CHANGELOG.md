@@ -1,4 +1,4 @@
-# MOAJ (Mentor of all Jacks) - Change History
+# MILE (Milestones, Insight, Learning & Evidence) - Change History
 
 This file records what the repository *was*, so that
 [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) can describe only the intended end
@@ -65,5 +65,23 @@ Work toward the reopened Phase 0 gate (plan v4.0, O30). In progress on branch `f
 | ADR-07, ADR-08 | Added: boards, columns and moves; secrets and keys. `docs/SCHEMA.md` added (the plan calls it `db/SCHEMA.md`; it moves next to the migrations in Phase 2). |
 | Valkey removed (`D3` withdrawn, DEC25) | `MOAJ_VALKEY_ADDR` removed from `internal/config` and its tests. Removed from README, SECURITY, CONTRIBUTING, `DEPENDENCY_LICENSES.md` and `docs/operations/monitoring.md`; ADR-01 records `D3` as withdrawn. Background work will run in PostgreSQL inside the server process (ADR-05). |
 | CLA replaced by DCO | `CONTRIBUTING.md` §2 and `LICENSING_BOUNDARIES.md` now require a DCO sign-off on every commit; the CLA, the ICLA/CCLA comparison and the CLA-bot checklist items are gone. |
-| `SECURITY.md` rewritten | Separates what the code enforces today from what later phases will enforce, and states the limits plainly (DEC72, DEC75). Removes claims the code did not support: wildcard-CORS and default-credential rejection, a 1-6 year retention window, and interns being unable to choose a reason. |
+| `SECURITY.md` replaced | By the version written on 21 November (plan v4.1). It separates what the code protects today from the security design and its status, and states the known limits (DEC72, DEC75), the operator's responsibilities and the licence-key compromise procedure. Claims the code did not support are gone: wildcard-CORS and default-credential rejection, a 1-6 year retention window, and interns being unable to choose a reason. |
 | `docs/operations/monitoring.md` | `428` describes the backward-move prompt only (the other triggers are O31); `OTHER` reason text removed (DEC11). |
+
+---
+
+## Rename to MILE - 2026-11-21
+
+DEC83, plan v4.1. One change renames everything that said MOAJ.
+
+| Before | After |
+| --- | --- |
+| Product name MOAJ (Mentor of all Jacks) | MILE (Milestones, Insight, Learning & Evidence) |
+| Module `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` | `github.com/Milestones-Insights-Learning-Evidence/MILE` (the GitHub repository was renamed; GitHub redirects the old URL) |
+| `cmd/moaj`, `bin/moaj`, `bin/moaj-ee` | `cmd/mile`, `bin/mile`, `bin/mile-ee` |
+| `MOAJ_*` environment variables | `MILE_*` - **breaking** for any existing deployment configuration |
+| `moaj_*` metrics, `MOAJ*` alert names, dashboard `uid: moaj-phase1-runtime` | `mile_*`, `MILE*`, `uid: mile-phase1-runtime` - **breaking** for stored metric history, saved queries and an already-imported dashboard |
+| `/etc/moaj/moaj_enterprise.lic` | `/etc/mile/mile_enterprise.lic` |
+| Compose database user, password and name `moaj` | `mile` (matches the Phase 2 schema's `mile` roles) |
+
+`docs/SCHEMA.md` now matches `db/SCHEMA.md`. The plan and the entries above this one keep the old name, because they record history.

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/observability"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/observability"
 )
 
 type requestIDKey struct{}

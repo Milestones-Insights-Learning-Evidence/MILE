@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Phase 1 operational baseline dashboard for MOAJ (Mentor of all Jacks): Go runtime health, process lifecycle, and HTTP traffic/fault classification separating expected 409/428 domain responses from 5xx server faults.",
+  "description": "Phase 1 operational baseline dashboard for MILE (Milestones, Insight, Learning & Evidence): Go runtime health, process lifecycle, and HTTP traffic/fault classification separating expected 409/428 domain responses from 5xx server faults.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -32,7 +32,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Reports active build version and edition (community or enterprise-preview) via moaj_build_info.",
+      "description": "Reports active build version and edition (community or enterprise-preview) via mile_build_info.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -63,7 +63,7 @@
       "targets": [
         {
           "EditorMode": "code",
-          "expr": "moaj_build_info{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "mile_build_info{job=~\"$job\", instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "{{version}} ({{edition}})",
@@ -75,7 +75,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Elapsed seconds since the MOAJ HTTP runtime initialized its metrics registry.",
+      "description": "Elapsed seconds since the MILE HTTP runtime initialized its metrics registry.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -106,7 +106,7 @@
       },
       "targets": [
         {
-          "expr": "time() - moaj_process_start_time_seconds{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "time() - mile_process_start_time_seconds{job=~\"$job\", instance=~\"$instance\"}",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -148,7 +148,7 @@
       },
       "targets": [
         {
-          "expr": "changes(moaj_process_start_time_seconds{job=~\"$job\", instance=~\"$instance\"}[1h])",
+          "expr": "changes(mile_process_start_time_seconds{job=~\"$job\", instance=~\"$instance\"}[1h])",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -158,7 +158,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Active Go goroutines inside the MOAJ runtime.",
+      "description": "Active Go goroutines inside the MILE runtime.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -280,7 +280,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (route, method) (rate(moaj_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "expr": "sum by (route, method) (rate(mile_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
           "legendFormat": "{{method}} {{route}}",
           "refId": "A"
         }
@@ -323,22 +323,22 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(moaj_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"2..\"}[5m]))",
+          "expr": "sum(rate(mile_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"2..\"}[5m]))",
           "legendFormat": "2xx Success",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(moaj_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"409|428\"}[5m]))",
+          "expr": "sum(rate(mile_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"409|428\"}[5m]))",
           "legendFormat": "409 / 428 Expected Workflow Conflict & Intercept",
           "refId": "B"
         },
         {
-          "expr": "sum(rate(moaj_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"4..\", status!~\"409|428\"}[5m]))",
+          "expr": "sum(rate(mile_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"4..\", status!~\"409|428\"}[5m]))",
           "legendFormat": "Other 4xx Client Errors",
           "refId": "C"
         },
         {
-          "expr": "sum(rate(moaj_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"5..\"}[5m]))",
+          "expr": "sum(rate(mile_http_requests_total{job=~\"$job\", instance=~\"$instance\", status=~\"5..\"}[5m]))",
           "legendFormat": "5xx Server Faults",
           "refId": "D"
         }
@@ -348,7 +348,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP request latency percentiles (p50, p95, p99) derived from moaj_http_request_duration_seconds_bucket.",
+      "description": "HTTP request latency percentiles (p50, p95, p99) derived from mile_http_request_duration_seconds_bucket.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -364,17 +364,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le, route) (rate(moaj_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le, route) (rate(mile_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
           "legendFormat": "p50 {{route}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(moaj_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(mile_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
           "legendFormat": "p95 {{route}}",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(moaj_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(mile_http_request_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
           "legendFormat": "p99 {{route}}",
           "refId": "C"
         }
@@ -400,7 +400,7 @@
       },
       "targets": [
         {
-          "expr": "moaj_http_requests_in_flight{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "mile_http_requests_in_flight{job=~\"$job\", instance=~\"$instance\"}",
           "legendFormat": "{{instance}} in-flight",
           "refId": "A"
         }
@@ -411,7 +411,7 @@
   ],
   "refresh": "15s",
   "schemaVersion": 39,
-  "tags": ["moaj", "phase1", "http-runtime"],
+  "tags": ["mile", "phase1", "http-runtime"],
   "templating": {
     "list": [
       {
@@ -429,16 +429,16 @@
         "type": "datasource"
       },
       {
-        "current": { "selected": false, "text": "moaj", "value": "moaj" },
+        "current": { "selected": false, "text": "mile", "value": "mile" },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "definition": "label_values(moaj_build_info, job)",
+        "definition": "label_values(mile_build_info, job)",
         "hide": 0,
         "includeAll": true,
         "label": "Job",
         "multi": false,
         "name": "job",
         "options": [],
-        "query": { "query": "label_values(moaj_build_info, job)", "refId": "StandardVariableQuery" },
+        "query": { "query": "label_values(mile_build_info, job)", "refId": "StandardVariableQuery" },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -448,14 +448,14 @@
       {
         "current": { "selected": false, "text": "All", "value": "$__all" },
         "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-        "definition": "label_values(moaj_build_info{job=~\"$job\"}, instance)",
+        "definition": "label_values(mile_build_info{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
         "label": "Instance",
         "multi": true,
         "name": "instance",
         "options": [],
-        "query": { "query": "label_values(moaj_build_info{job=~\"$job\"}, instance)", "refId": "StandardVariableQuery" },
+        "query": { "query": "label_values(mile_build_info{job=~\"$job\"}, instance)", "refId": "StandardVariableQuery" },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -467,8 +467,8 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "utc",
-  "title": "MOAJ (Mentor of all Jacks) - Runtime & HTTP Baseline",
-  "uid": "moaj-phase1-runtime",
+  "title": "MILE (Milestones, Insight, Learning & Evidence) - Runtime & HTTP Baseline",
+  "uid": "mile-phase1-runtime",
   "version": 1,
   "weekStart": ""
 }

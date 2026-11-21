@@ -11,10 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/api"
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/config"
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/enterprise"
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/observability"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/api"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/config"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/enterprise"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/observability"
 )
 
 var version = "dev"
@@ -34,19 +34,19 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		command = args[0]
 	}
 	if len(args) > 1 {
-		return errors.New("usage: moaj [serve|version|help]")
+		return errors.New("usage: mile [serve|version|help]")
 	}
 	switch command {
 	case "help", "-h", "--help":
-		_, err := fmt.Fprintln(stdout, "Usage: moaj [serve|version|help]\n\nserve starts the HTTP runtime (default). Database, workers and UI arrive in later phases.")
+		_, err := fmt.Fprintln(stdout, "Usage: mile [serve|version|help]\n\nserve starts the HTTP runtime (default). Database, workers and UI arrive in later phases.")
 		return err
 	case "version":
-		_, err := fmt.Fprintf(stdout, "moaj %s (%s)\n", version, enterprise.Edition())
+		_, err := fmt.Fprintf(stdout, "mile %s (%s)\n", version, enterprise.Edition())
 		return err
 	case "serve":
 		// Continue below. Never echo arbitrary arguments into logs.
 	default:
-		return errors.New("unknown command; usage: moaj [serve|version|help]")
+		return errors.New("unknown command; usage: mile [serve|version|help]")
 	}
 
 	cfg, err := config.Load()

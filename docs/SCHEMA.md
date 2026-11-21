@@ -118,7 +118,7 @@ The database cannot know the version a client expected, so step 2's `WHERE versi
 
 ```sh
 psql -v migrator_password=... -v app_password=... -v retention_password=... -v backup_password=... -f db/roles.sql   # as an admin with CREATEROLE, CREATEDB
-for f in db/migrations/*.up.sql; do psql -U moaj_migrator -d moaj --single-transaction -v ON_ERROR_STOP=1 -f "$f"; done
+for f in db/migrations/*.up.sql; do psql -U mile_migrator -d mile --single-transaction -v ON_ERROR_STOP=1 -f "$f"; done
 PGADMIN=postgres db/test/schema_test.sh
 ```
 
@@ -137,4 +137,4 @@ The tests fail if step 2 or step 4 is forgotten.
 
 Added with their features (plan D6), already listed in the Data inventory tab: identity-provider links, role assignments, sessions, invitation and reset links (Phase 3); comments and in-app notifications (Phase 4); rubrics, assessments, frozen reviews, notebooks (Phase 6); retention requests, legal holds and backup records (Phase 7); Enterprise tables (Phase 9).
 
-Names: roles, the database and the `moaj.erasure_*` settings use the `moaj` prefix until the name is cleared (O19); the rename changes them with the rest.
+Names: roles, the database and the `mile.erasure_*` settings use the `mile` prefix.

@@ -1,4 +1,4 @@
--- MOAJ (Mentor of all Jacks) - Core Workflow & Append-Only Transition Ledger Schema
+-- MILE (Milestones, Insight, Learning & Evidence) - Core Workflow & Append-Only Transition Ledger Schema
 -- Implementation Target: Phase 2 (Persistence, retention-aware schema, and transactions)
 -- Reference: docs/adr/ADR-02-append-only-relational-ledger.md & docs/IMPLEMENTATION_PLAN.md §7 (Phase 2)
 --

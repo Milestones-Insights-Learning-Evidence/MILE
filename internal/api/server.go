@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/config"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/config"
 )
 
 func NewHTTPServer(cfg config.Config, handler http.Handler, logger *slog.Logger) *http.Server {

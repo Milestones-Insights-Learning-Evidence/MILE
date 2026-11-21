@@ -2,7 +2,7 @@ MIT License (Open-Core Community Edition Scope)
 
 IMPORTANT REPOSITORY BOUNDARY NOTICE:
 This MIT License applies strictly to the open-core Community Edition components
-of the MOAJ (Mentor of all Jacks) repository located in:
+of the MILE (Milestones, Insight, Learning & Evidence) repository located in:
   - cmd/
   - internal/
   - db/
@@ -18,7 +18,7 @@ See `docs/governance/LICENSING_BOUNDARIES.md` for full licensing boundary detail
 
 MIT License
 
-Copyright (c) 2026 MOAJ Contributors / Project Owner (see D17 in docs/IMPLEMENTATION_PLAN.md)
+Copyright (c) 2026 MILE Contributors / Project Owner (see D17 in docs/IMPLEMENTATION_PLAN.md)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

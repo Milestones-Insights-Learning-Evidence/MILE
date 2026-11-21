@@ -66,7 +66,7 @@ jobs:
 
       - name: Verify Community build never imports proprietary ee/ packages
         run: |
-          ee_imports="$(go list -deps ./cmd/moaj | grep '^github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/ee' || true)"
+          ee_imports="$(go list -deps ./cmd/mile | grep '^github.com/Milestones-Insights-Learning-Evidence/MILE/ee' || true)"
           if [ -n "$ee_imports" ]; then
             echo "::error::Community build imports proprietary ee/ packages:"
             echo "$ee_imports"
@@ -83,10 +83,10 @@ jobs:
       - name: Compile Community & Enterprise single binaries
         run: |
           mkdir -p bin
-          go build -trimpath -o bin/moaj ./cmd/moaj
-          go build -trimpath -tags ee -o bin/moaj-ee ./cmd/moaj
-          ./bin/moaj version
-          ./bin/moaj-ee version
+          go build -trimpath -o bin/mile ./cmd/mile
+          go build -trimpath -tags ee -o bin/mile-ee ./cmd/mile
+          ./bin/mile version
+          ./bin/mile-ee version
 
   license-gate:
     name: Dependency License Cleanliness (NFR-03)
@@ -108,7 +108,7 @@ jobs:
       - name: Run go-licenses check against copyleft/restricted licenses (IMS-GOV-01 §6)
         run: |
           go install github.com/google/go-licenses@latest
-          go-licenses check ./cmd/moaj --disallowed_types=forbidden,restricted,reciprocal,unknown
+          go-licenses check ./cmd/mile --disallowed_types=forbidden,restricted,reciprocal,unknown
 
       - name: Check UI dependencies license cleanliness (when ui/node_modules exists)
         run: |

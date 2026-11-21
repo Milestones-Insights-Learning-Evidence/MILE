@@ -24,12 +24,12 @@ func TestMetricsExposesRuntimeAndHTTPSeries(t *testing.T) {
 	}
 	body := rr.Body.String()
 	for _, expected := range []string{
-		`moaj_build_info{edition="community",version="1.0.0-test"} 1`,
-		`moaj_process_start_time_seconds `,
-		`moaj_http_requests_in_flight 0`,
-		`moaj_http_requests_total{method="GET",route="/healthz",status="200"} 1`,
-		`moaj_http_requests_total{method="OTHER",route="unmatched",status="404"} 1`,
-		`moaj_http_request_duration_seconds_count{method="GET",route="/healthz"} 1`,
+		`mile_build_info{edition="community",version="1.0.0-test"} 1`,
+		`mile_process_start_time_seconds `,
+		`mile_http_requests_in_flight 0`,
+		`mile_http_requests_total{method="GET",route="/healthz",status="200"} 1`,
+		`mile_http_requests_total{method="OTHER",route="unmatched",status="404"} 1`,
+		`mile_http_request_duration_seconds_count{method="GET",route="/healthz"} 1`,
 		`go_goroutines `,
 	} {
 		if !strings.Contains(body, expected) {

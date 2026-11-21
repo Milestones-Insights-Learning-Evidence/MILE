@@ -1,6 +1,6 @@
-# Contributing to MOAJ (Mentor of all Jacks)
+# Contributing to MILE (Milestones, Insight, Learning & Evidence)
 
-Thank you for your interest in contributing to **MOAJ (Mentor of all Jacks)**. MOAJ is a self-hosted, open-core intern management system that converts everyday task workflow movements into transparent, reviewable HR and mentorship evidence.
+Thank you for your interest in contributing to **MILE (Milestones, Insight, Learning & Evidence)**. MILE is a self-hosted, open-core intern management system that converts everyday task workflow movements into transparent, reviewable HR and mentorship evidence.
 
 Before submitting a pull request, please review the repository boundaries, the Developer Certificate of Origin (DCO) sign-off rule, build tags, and verification gates below.
 
@@ -8,14 +8,14 @@ Before submitting a pull request, please review the repository boundaries, the D
 
 ## 1. Repository Structure & Open-Core Licensing Boundaries
 
-MOAJ uses a **Single-Repository Open-Core** layout (`IMS-GOV-01` §1). Contributions must respect the boundary between the MIT-licensed Community Edition and the proprietary Enterprise Edition (`ee/`):
+MILE uses a **Single-Repository Open-Core** layout (`IMS-GOV-01` §1). Contributions must respect the boundary between the MIT-licensed Community Edition and the proprietary Enterprise Edition (`ee/`):
 
 | Path | Edition & License | Description |
 | :--- | :--- | :--- |
-| `cmd/moaj/` | Community (MIT) | Single-binary CLI entry point (`moaj serve`, `moaj version`, `moaj help`; `migrate`, `backup`, `restore` and others in later phases). |
+| `cmd/mile/` | Community (MIT) | Single-binary CLI entry point (`mile serve`, `mile version`, `mile help`; `migrate`, `backup`, `restore` and others in later phases). |
 | `internal/` | Community (MIT) | Today: `config`, `api`, `observability`, `enterprise`. Planned (plan §6.1): `auth`, `workflow`, `reason`, `hr`, `db`, `jobs`, `notify`, `retention`, `backup`, `realtime`. |
 | `db/` | Community (MIT) | Embedded Goose SQL migrations (`db/migrations/`) and SQLc query files (`db/query/`). |
-| `ui/` | Community (MIT) | SvelteKit static frontend (`moaj-ui`) embedded into the Go binary. |
+| `ui/` | Community (MIT) | SvelteKit static frontend (`mile-ui`) embedded into the Go binary. |
 | `docs/`, `deploy/` | Community (MIT) | Architecture Decision Records (`docs/adr/`), governance docs (`docs/governance/`), operations runbooks (`docs/operations/`), and container/monitoring manifests. `IMS-GOV-01` §1 additionally calls for `CC-BY-4.0` on documentation prose, but no `CC-BY-4.0` notice exists in the repository yet, so everything here is MIT today (tracked in `docs/governance/LICENSING_BOUNDARIES.md` §5). |
 | `ee/` | **Enterprise (Proprietary EULA)** | Enterprise-only modules (`ee/auth/`, `ee/rbac/`, `ee/audit/`, `ee/license/`) governed exclusively by `ee/EULA.md`. |
 
@@ -47,9 +47,9 @@ There is no Contributor License Agreement. Contributions stay under the MIT Lice
 
 ## 3. Development Prerequisites
 
-- **Go Toolchain:** Go `1.26.x`, latest patch (`go.mod` declares `go 1.26.0` as a minimum, not a pin; CI uses `go-version: 1.26.x`). Module path `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ` per `D1`.
+- **Go Toolchain:** Go `1.26.x`, latest patch (`go.mod` declares `go 1.26.0` as a minimum, not a pin; CI uses `go-version: 1.26.x`). Module path `github.com/Milestones-Insights-Learning-Evidence/MILE` per `D1`.
 - **Formatting & Static Analysis:** `gofmt` (standard library), `go vet`, `staticcheck`, and `govulncheck`. Run `make vet` and `make staticcheck`: both run twice, once with default tags and once with `-tags ee`, because files behind `//go:build ee` are invisible to a default-tag analysis.
-- **Database (Phase 2+):** PostgreSQL 16. PostgreSQL is the only service MOAJ depends on: background jobs, scheduling and the notification outbox also run on it (Phase 5).
+- **Database (Phase 2+):** PostgreSQL 16. PostgreSQL is the only service MILE depends on: background jobs, scheduling and the notification outbox also run on it (Phase 5).
 - **Running tests on Windows:** Smart App Control blocks the unsigned test binaries that `go test` builds. Run the suite in a Linux container instead, which also matches CI: `docker run --rm -v "${PWD}:/src" -v gomod:/go/pkg/mod -w /src golang:1.26 go test -race ./...`
 - **Third-Party Dependency Policy (`NFR-03`):**
   - Distributed runtime dependencies must use approved permissive licenses (`MIT`, `BSD-2-Clause`, `BSD-3-Clause`, `Apache-2.0`, `ISC`, `PostgreSQL`).
@@ -60,14 +60,14 @@ There is no Contributor License Agreement. Contributions stay under the MIT Lice
 
 ## 4. Community vs. Enterprise (`-tags ee`) Build Rules
 
-MOAJ compiles two distinct editions from the same repository using Go build constraints:
+MILE compiles two distinct editions from the same repository using Go build constraints:
 
 1. **Community Edition (Default — `//go:build !ee`):**
-   - Built with standard commands (`go build -o bin/moaj ./cmd/moaj` or `make build`).
+   - Built with standard commands (`go build -o bin/mile ./cmd/mile` or `make build`).
    - Uses `internal/enterprise/bridge_community.go` safe no-op/Community stubs.
-   - **Strict Rule:** No package compiled in the default Community build may import any package under `github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/ee/...`. This is enforced by `make boundary-check` and CI.
+   - **Strict Rule:** No package compiled in the default Community build may import any package under `github.com/Milestones-Insights-Learning-Evidence/MILE/ee/...`. This is enforced by `make boundary-check` and CI.
 2. **Enterprise Edition (`-tags ee` — `//go:build ee`):**
-   - Built with `go build -tags ee -o bin/moaj-ee ./cmd/moaj` or `make build-ee`.
+   - Built with `go build -tags ee -o bin/mile-ee ./cmd/mile` or `make build-ee`.
    - Uses `internal/enterprise/bridge_ee.go` to wire enterprise modules once implemented in Phase 9.
    - Both editions must compile cleanly and pass all tests on every pull request.
 
@@ -95,11 +95,11 @@ make test
 make test-ee
 make test-race
 
-# 6. Build both Community and Enterprise binaries (./bin/moaj and ./bin/moaj-ee)
+# 6. Build both Community and Enterprise binaries (./bin/mile and ./bin/mile-ee)
 make build
 make build-ee
 ```
 
 ### Coding & Privacy Guidelines for Contributors
-- **No Secrets or PII in Logs/Metrics:** Never log raw passwords, session tokens, database credentials, cryptographic keys, or free-text intern evaluation notes. Never use `user_id`, `task_id`, raw URLs, or email addresses as Prometheus metric labels (`moaj_*`).
+- **No Secrets or PII in Logs/Metrics:** Never log raw passwords, session tokens, database credentials, cryptographic keys, or free-text intern evaluation notes. Never use `user_id`, `task_id`, raw URLs, or email addresses as Prometheus metric labels (`mile_*`).
 - **Specification Amendments:** Always check `docs/IMPLEMENTATION_PLAN.md` and `docs/adr/` before implementing domain rules. Where the implementation plan amends the original PDF specifications in `docs/specs/`, follow the recorded ADR and implementation plan contract.

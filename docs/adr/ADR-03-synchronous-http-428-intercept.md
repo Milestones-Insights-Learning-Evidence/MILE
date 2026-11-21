@@ -8,7 +8,7 @@
 
 ## 1. Context
 
-A core differentiator of **MOAJ (Mentor of all Jacks)** is capturing structured root-cause attribution at the exact moment workflow friction occurs—such as when a task bounces backward from code review to in-progress, exceeds 300% of its column SLA, or repeatedly oscillates into a `Blocked` state.
+A core differentiator of **MILE (Milestones, Insight, Learning & Evidence)** is capturing structured root-cause attribution at the exact moment workflow friction occurs—such as when a task bounces backward from code review to in-progress, exceeds 300% of its column SLA, or repeatedly oscillates into a `Blocked` state.
 
 If root-cause capture is implemented as an optional post-hoc comment or asynchronous prompt after the card has already moved, users routinely dismiss or skip the prompt, resulting in unattributed revisions and subjective end-of-internship evaluations.
 
@@ -64,4 +64,4 @@ When a client submits `PATCH /api/v1/tasks/{id}/transition`:
 - **Fairness & Data Honesty:** Adding `ACCIDENTAL_MOVE` and `OTHER` prevents users from polluting `KNOWLEDGE_GAP` or `SCOPE_CREEP` metrics when correcting a mistaken drag-and-drop.
 
 ### Trade-offs & Mitigations
-- **Expected `428` & `409` Responses in HTTP Telemetry:** Because `428` and `409` are normal domain control-flow signals rather than server failures, `internal/observability` (`moaj_http_requests_total`) and Prometheus alert rules explicitly separate `409`/`428` outcomes from `5xx` server errors.
+- **Expected `428` & `409` Responses in HTTP Telemetry:** Because `428` and `409` are normal domain control-flow signals rather than server failures, `internal/observability` (`mile_http_requests_total`) and Prometheus alert rules explicitly separate `409`/`428` outcomes from `5xx` server errors.

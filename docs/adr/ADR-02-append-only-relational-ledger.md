@@ -10,7 +10,7 @@
 
 Traditional task trackers overwrite a mutable `status` column when a card moves across a Kanban board, discarding the historical timing, bounce-back sequence, and context needed for objective intern performance reviews. Conversely, storing unstructured event streams in a NoSQL document store sacrifices relational foreign-key integrity, transactional consistency between task state and audit history, and strict role-based query scoping.
 
-At the same time, because **MOAJ (Mentor of all Jacks)** records granular workflow friction (backward transitions, SLA overruns, and mentor-attributed `KNOWLEDGE_GAP` or `CARELESS_ERROR` classifications), the database legally constitutes an **Automated Employee Evaluation & Personnel File System** subject to GDPR Article 5(1)(e) (Storage Limitation) and regional labor laws.
+At the same time, because **MILE (Milestones, Insight, Learning & Evidence)** records granular workflow friction (backward transitions, SLA overruns, and mentor-attributed `KNOWLEDGE_GAP` or `CARELESS_ERROR` classifications), the database legally constitutes an **Automated Employee Evaluation & Personnel File System** subject to GDPR Article 5(1)(e) (Storage Limitation) and regional labor laws.
 
 During Phase 0 specification reconciliation (`docs/IMPLEMENTATION_PLAN.md`), several conflicts and gaps in the initial PDFs were identified and resolved:
 1. Field naming divergence between the BRD (`time_spent_in_previous_ms`) and the Architecture Blueprint (`time_in_prev_state_ms`).
@@ -37,7 +37,7 @@ During Phase 0 specification reconciliation (`docs/IMPLEMENTATION_PLAN.md`), sev
 
 ### 3.2 Atomic Durable Notification Outbox (`docs/IMPLEMENTATION_PLAN.md` §3.1 & §6.2)
 - **Supersedes:** Inserting a bare deduplication key and firing external Slack/SMTP calls without durable delivery tracking.
-- **Amended Rule:** Whenever a transition or SLA sweep generates a notification intent, the intent is committed atomically into a PostgreSQL durable outbox table within the same transaction as the state change. Background workers (`moaj worker`) poll/process pending outbox rows asynchronously with idempotency keys, retry/backoff state, and inspectable failure metrics.
+- **Amended Rule:** Whenever a transition or SLA sweep generates a notification intent, the intent is committed atomically into a PostgreSQL durable outbox table within the same transaction as the state change. Background workers (`mile worker`) poll/process pending outbox rows asynchronously with idempotency keys, retry/backoff state, and inspectable failure metrics.
 
 ### 3.3 Privacy, Retention, and Privilege-Separated Erasure Contract (`D9`, `D10`, `docs/IMPLEMENTATION_PLAN.md` §4)
 - **Supersedes:** The claim in Blueprint v1.0 / `IMS-GOV-01` §5.1 that replacing `intern_id` with a salted one-way hash (`SHA-256`) while retaining individual task titles, timestamps, and transition histories indefinitely makes records "100% anonymous." As supported by EDPB Guidelines 01/2025 on pseudonymisation, rare task descriptions, exact timestamps, small cohorts, or free-text `OTHER` explanations can still re-identify an individual without a name or UUID.
@@ -45,7 +45,7 @@ During Phase 0 specification reconciliation (`docs/IMPLEMENTATION_PLAN.md`), sev
   1. **Bounded Retention Window (`D9`):** Identifiable personnel evidence (memberships, task assignments, detailed transitions, intercept events, evaluations, private mentor notes, and `OTHER` explanations) is retained only during the configured retention period (`1–6 years`).
   2. **Privilege Separation:** The database enforces three distinct privilege roles:
      - **Application Runtime Role:** Granted `SELECT, INSERT` (no `UPDATE`, `DELETE`, `TRUNCATE`, or `DDL`) on `transition_ledger` and `intercept_events`, enforced by both SQL privileges and append-only database triggers.
-     - **Migration Role:** Used exclusively by `moaj migrate` under an advisory lock.
+     - **Migration Role:** Used exclusively by `mile migrate` under an advisory lock.
      - **Restricted Retention/Erasure Role:** Executes controlled, audited expiry erasure via a security-definer/restricted pathway with a fixed `search_path`.
   3. **Controlled Expiry Erasure (`D10`):** At retention expiry, the controlled retention process purges expired personal records, task text, private mentor notes, `OTHER` explanations, and published snapshot details, while preserving active user accounts that belong to other still-active cohorts.
   4. **Assessed Aggregate Benchmarks & Small-Group Suppression:** Only approved cohort/department aggregate benchmarks are retained beyond the retention window, with small-group suppression rules so tiny cohorts cannot leak individual identity.

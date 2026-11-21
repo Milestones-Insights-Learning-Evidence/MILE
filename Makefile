@@ -1,7 +1,7 @@
-# MOAJ (Mentor of all Jacks) - Build, Test, Boundary & License Verification Makefile
+# MILE (Milestones, Insight, Learning & Evidence) - Build, Test, Boundary & License Verification Makefile
 # Usage:
-#   make build           - Build Community Edition binary (./bin/moaj)
-#   make build-ee        - Build Enterprise Edition binary with -tags ee (./bin/moaj-ee)
+#   make build           - Build Community Edition binary (./bin/mile)
+#   make build-ee        - Build Enterprise Edition binary with -tags ee (./bin/mile-ee)
 #   make test            - Run unit tests (Community build)
 #   make test-ee         - Run unit tests (Enterprise -tags ee build)
 #   make test-race       - Run unit tests with Go race detector (Community & EE)
@@ -20,13 +20,13 @@ SQLC        ?= sqlc
 GO_LICENSES ?= go-licenses
 STATICCHECK ?= staticcheck
 BIN_DIR     := bin
-BINARY      := $(BIN_DIR)/moaj
-BINARY_EE   := $(BIN_DIR)/moaj-ee
-MODULE      := github.com/MOAJ-Mentor-of-all-Jacks/MOAJ
+BINARY      := $(BIN_DIR)/mile
+BINARY_EE   := $(BIN_DIR)/mile-ee
+MODULE      := github.com/Milestones-Insights-Learning-Evidence/MILE
 
 # Approved permissive runtime module allowlist (see docs/governance/DEPENDENCY_LICENSES.md)
 APPROVED_MODULES := \
-	github.com/MOAJ-Mentor-of-all-Jacks/MOAJ \
+	github.com/Milestones-Insights-Learning-Evidence/MILE \
 	github.com/prometheus/client_golang \
 	github.com/beorn7/perks \
 	github.com/cespare/xxhash/v2 \
@@ -43,11 +43,11 @@ all: fmt-check vet staticcheck boundary-check license-check test test-ee build b
 
 build:
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -trimpath -o $(BINARY) ./cmd/moaj
+	$(GO) build -trimpath -o $(BINARY) ./cmd/mile
 
 build-ee:
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -trimpath -tags ee -o $(BINARY_EE) ./cmd/moaj
+	$(GO) build -trimpath -tags ee -o $(BINARY_EE) ./cmd/mile
 
 test:
 	$(GO) test ./...
@@ -82,7 +82,7 @@ fmt-check:
 	@echo "OK: All Go files are properly formatted."
 
 boundary-check:
-	@ee_deps=$$($(GO) list -deps ./cmd/moaj | grep '^$(MODULE)/ee' || true); \
+	@ee_deps=$$($(GO) list -deps ./cmd/mile | grep '^$(MODULE)/ee' || true); \
 	if [ -n "$$ee_deps" ]; then \
 		echo "ERROR: Community build imports proprietary ee/ packages:"; \
 		echo "$$ee_deps"; \
@@ -94,9 +94,9 @@ boundary-check:
 # for the GOOS/GOARCH that is distributed (linux/amd64 containers). `go list -m all`
 # must NOT be used here: module-graph pruning still reports test-only dependencies of
 # dependencies (testify, kingpin, json-iterator, ...) that are never compiled into
-# bin/moaj, so it fails the gate on software MOAJ does not distribute. That is exactly
+# bin/mile, so it fails the gate on software MILE does not distribute. That is exactly
 # the distributed-vs-build-tool distinction in docs/governance/DEPENDENCY_LICENSES.md section 2.
-LINKED_MODULES = $(sort $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/moaj) $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -tags ee -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/moaj))
+LINKED_MODULES = $(sort $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/mile) $(shell GOOS=linux GOARCH=amd64 $(GO) list -deps -tags ee -f "{{with .Module}}{{.Path}}{{end}}" ./cmd/mile))
 
 license-check:
 	@for mod in $(LINKED_MODULES); do \
@@ -111,7 +111,7 @@ license-check:
 		fi; \
 	done
 	@if command -v $(GO_LICENSES) >/dev/null 2>&1; then \
-		$(GO_LICENSES) check ./cmd/moaj --disallowed_types=forbidden,restricted,reciprocal,unknown; \
+		$(GO_LICENSES) check ./cmd/mile --disallowed_types=forbidden,restricted,reciprocal,unknown; \
 	else \
 		echo "INFO: go-licenses not installed locally; CI runs it. Install: go install github.com/google/go-licenses@latest"; \
 	fi

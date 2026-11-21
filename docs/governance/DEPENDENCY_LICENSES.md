@@ -11,7 +11,7 @@ Per `docs/IMPLEMENTATION_PLAN.md` Appendix A and §7 (Phase 0), the following fo
 
 | Decision ID | Resolution | Rationale & Compliance Impact |
 | :--- | :--- | :--- |
-| **`D1`** (Project Name & Module Path) | Official Name: **MOAJ - Mentor of all Jacks** (`cmd/moaj`, `bin/moaj`, `MOAJ_*` env vars, `/etc/moaj/moaj_enterprise.lic`, `moaj_*` metrics); Go Module Path: **`github.com/MOAJ-Mentor-of-all-Jacks/MOAJ`** | Establishes the official product identity **MOAJ (Mentor of all Jacks)** and aligns `go.mod` with the canonical GitHub organization repository `https://github.com/MOAJ-Mentor-of-all-Jacks/MOAJ.git` (only `MOAJ_*` variables and their `_FILE` variants are read). |
+| **`D1`** (Project Name & Module Path) | Official Name: **MILE - Milestones, Insight, Learning & Evidence** (`cmd/mile`, `bin/mile`, `MILE_*` env vars, `/etc/mile/mile_enterprise.lic`, `mile_*` metrics); Go Module Path: **`github.com/Milestones-Insights-Learning-Evidence/MILE`** | Establishes the official product identity **MILE (Milestones, Insight, Learning & Evidence)** and aligns `go.mod` with the canonical GitHub organization repository `https://github.com/Milestones-Insights-Learning-Evidence/MILE.git` (only `MILE_*` variables and their `_FILE` variants are read). |
 | **`D2`** (Go Toolchain & CI Policy) | **`go 1.26.0` in `go.mod` as a minimum, with no `toolchain` line**; CI selects the toolchain with `go-version: 1.26.x` and `check-latest: true` on Linux with `-race` enabled | Local environment reports `go1.27.2 windows/amd64`, which is treated as machine evidence rather than upstream support policy. The `go` directive is a language/API floor, not a build pin: resolving it verbatim via `go-version-file` would install exactly `1.26.0` and inherit standard-library advisories fixed in later patches, which `govulncheck` would then report. CI therefore pins the minor series and takes the latest patch. |
 | **`D3`** (In-Memory Queue Broker) | **Withdrawn.** No Redis-family dependency: background jobs, scheduling and the notification outbox run in PostgreSQL inside the server process (DEC25; ADR-05). | Redis 7.4+ moved to `RSALv2`/`SSPLv1` (and Redis 8 added `AGPLv3`), which `NFR-03` forbids. Removing the separate broker meets `NFR-03` without depending on any Redis-compatible fork, and leaves PostgreSQL as the one service to run, back up and secure. The earlier broker choice is recorded as superseded in ADR-01 and `docs/CHANGELOG.md`. |
 
@@ -19,14 +19,14 @@ Per `docs/IMPLEMENTATION_PLAN.md` Appendix A and §7 (Phase 0), the following fo
 
 ## 2. Distributed Dependencies vs. Non-Distributed Build/CI Tools
 
-Because `docs/IMPLEMENTATION_PLAN.md` §8 requires the shipped dependency licences to be checked for each release, MOAJ strictly distinguishes between two categories of third-party software:
+Because `docs/IMPLEMENTATION_PLAN.md` §8 requires the shipped dependency licences to be checked for each release, MILE strictly distinguishes between two categories of third-party software:
 
 ### 2.1 Distributed Runtime Dependencies (Strict Permissive Gate)
-- **Definition:** Any Go module (`go.mod`), JavaScript/TypeScript package (`ui/package.json`), CSS/font asset, or embedded binary artifact that is compiled into, linked with, or bundled inside the shipped `moaj` single binary (Community `bin/moaj` or Enterprise `bin/moaj-ee`) or container image.
-- **Legal Impact:** Because the `moaj` binary is distributed under both the MIT License (Community) and the proprietary MOAJ Enterprise EULA (`ee/EULA.md`), every distributed runtime dependency **must** carry an approved permissive license with zero reciprocal/copyleft viral obligations.
+- **Definition:** Any Go module (`go.mod`), JavaScript/TypeScript package (`ui/package.json`), CSS/font asset, or embedded binary artifact that is compiled into, linked with, or bundled inside the shipped `mile` single binary (Community `bin/mile` or Enterprise `bin/mile-ee`) or container image.
+- **Legal Impact:** Because the `mile` binary is distributed under both the MIT License (Community) and the proprietary MILE Enterprise EULA (`ee/EULA.md`), every distributed runtime dependency **must** carry an approved permissive license with zero reciprocal/copyleft viral obligations.
 
 ### 2.2 Non-Distributed Build, Code-Generation, and CI Tools
-- **Definition:** Standalone developer and CI executables invoked during build, code generation, linting, or testing whose own source code is **not** linked into the compiled `moaj` binary (unless a runtime library package is separately imported in `go.mod`).
+- **Definition:** Standalone developer and CI executables invoked during build, code generation, linting, or testing whose own source code is **not** linked into the compiled `mile` binary (unless a runtime library package is separately imported in `go.mod`).
 - **Examples:**
   - `sqlc` (`MIT`) — generates pure Go source code in `internal/db/` from SQL queries.
   - `staticcheck` (`MIT`) — static analysis CLI run in CI.
@@ -74,21 +74,21 @@ Every direct and indirect module present in `go.mod` as of Phase 0/Phase 1 has b
 
 ### Core Infrastructure Stack Licenses (`NFR-03`)
 
-| Component | Planned / Active Version | SPDX License | Role in MOAJ |
+| Component | Planned / Active Version | SPDX License | Role in MILE |
 | :--- | :--- | :--- | :--- |
-| **Go Standard Library & Runtime** | `1.26+` | `BSD-3-Clause` | Single-binary HTTP server (`moaj`), `log/slog`, `crypto/*`, `embed`. |
-| **PostgreSQL** | `16` | `PostgreSQL` | Primary ACID relational store, `JSONB` rubrics, `LISTEN/NOTIFY`, and the background job queue (`FOR UPDATE SKIP LOCKED`). The only service MOAJ depends on. |
-| **SvelteKit (`@sveltejs/kit`, `@sveltejs/adapter-static`)** | `2.x` (Phase 4) | `MIT` | Static single-page frontend (`moaj-ui`) embedded into the Go binary. |
+| **Go Standard Library & Runtime** | `1.26+` | `BSD-3-Clause` | Single-binary HTTP server (`mile`), `log/slog`, `crypto/*`, `embed`. |
+| **PostgreSQL** | `16` | `PostgreSQL` | Primary ACID relational store, `JSONB` rubrics, `LISTEN/NOTIFY`, and the background job queue (`FOR UPDATE SKIP LOCKED`). The only service MILE depends on. |
+| **SvelteKit (`@sveltejs/kit`, `@sveltejs/adapter-static`)** | `2.x` (Phase 4) | `MIT` | Static single-page frontend (`mile-ui`) embedded into the Go binary. |
 
 ---
 
 ## 5. Verification Procedure
 
 1. **Deterministic Allowlist Check (`make license-check`):**
-   - Queries the modules that are actually **linked into the shipped binaries** - `go list -deps -f '{{with .Module}}{{.Path}}{{end}}' ./cmd/moaj`, run for both the Community and `-tags ee` builds and pinned to the distributed `GOOS=linux GOARCH=amd64` - and verifies that each one appears in the approved permissive inventory in Section 4. Any unreviewed module fails the gate with instructions to verify its SPDX license and update this document.
-   - `go list -m all` is deliberately **not** used: even with module-graph pruning it reports test-only dependencies of dependencies (`stretchr/testify`, `alecthomas/kingpin`, `json-iterator/go`, `golang.org/x/net`, and ~20 more pulled in by `prometheus/common`'s own test suite) that are never compiled into `bin/moaj`. Gating on that set contradicts the Section 2.2 distinction between distributed artifacts and build/test tooling, and would fail the build on software MOAJ does not distribute.
+   - Queries the modules that are actually **linked into the shipped binaries** - `go list -deps -f '{{with .Module}}{{.Path}}{{end}}' ./cmd/mile`, run for both the Community and `-tags ee` builds and pinned to the distributed `GOOS=linux GOARCH=amd64` - and verifies that each one appears in the approved permissive inventory in Section 4. Any unreviewed module fails the gate with instructions to verify its SPDX license and update this document.
+   - `go list -m all` is deliberately **not** used: even with module-graph pruning it reports test-only dependencies of dependencies (`stretchr/testify`, `alecthomas/kingpin`, `json-iterator/go`, `golang.org/x/net`, and ~20 more pulled in by `prometheus/common`'s own test suite) that are never compiled into `bin/mile`. Gating on that set contradicts the Section 2.2 distinction between distributed artifacts and build/test tooling, and would fail the build on software MILE does not distribute.
    - The `GOOS` pin matters: `github.com/prometheus/procfs` is linked only on Linux, so a developer running the gate on Windows or macOS would otherwise exercise a different module set than CI and the container image.
 2. **Automated Upstream License Classification (`go-licenses`):**
-   - In CI (`.github/workflows/ci-license-gate.yml`), `go-licenses check ./cmd/moaj --disallowed_types=forbidden,restricted,reciprocal,unknown` inspects the license files of all transitive packages compiled into the binary.
+   - In CI (`.github/workflows/ci-license-gate.yml`), `go-licenses check ./cmd/mile --disallowed_types=forbidden,restricted,reciprocal,unknown` inspects the license files of all transitive packages compiled into the binary.
 3. **Frontend Package Gate (Phase 4+):**
    - When `ui/` dependencies are installed in Phase 4, `npx license-checker --production --onlyAllow "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;Unlicense;CC-BY-4.0"` (the trailing `CC-BY-4.0` covers attribution-licensed font and icon assets only, and must match the list in `.github/workflows/ci-license-gate.yml`) enforces the identical permissive policy on the embedded UI bundle.

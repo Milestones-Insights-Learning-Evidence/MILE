@@ -1,4 +1,4 @@
-module github.com/MOAJ-Mentor-of-all-Jacks/MOAJ
+module github.com/Milestones-Insights-Learning-Evidence/MILE
 
 // Minimum language/API level. `go mod tidy` canonicalizes this directive to a full
 // x.y.z version, and no `toolchain` line is declared, so this is a floor and not a
