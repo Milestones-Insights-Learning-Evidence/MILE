@@ -122,33 +122,34 @@ jobs:
             echo "UI dependencies not installed yet (Phase 4 scaffold); skipping npm license-checker."
           fi
 
-  # This job checks for a self-asserted acknowledgement sentence in the pull-request
-  # body. That is a prompt, not proof: anyone can type it, GitHub does not
-  # authenticate it, and no signature record is stored anywhere. It must not be
-  # described or relied on as CLA verification. Actual CLA enforcement requires the
-  # hosted CLA bot / signature database tracked under D17
-  # (docs/governance/LICENSING_BOUNDARIES.md §5), which must be configured before any
-  # external pull request is merged.
-  cla-acknowledgement-prompt:
-    name: CLA Acknowledgement Prompt (advisory - not signature verification; see D17)
+  # Every commit in a pull request must carry a Developer Certificate of Origin
+  # sign-off from its own author (CONTRIBUTING.md §2). A sign-off is a statement
+  # in the commit message, not a cryptographic signature.
+  dco:
+    name: DCO sign-off on every commit
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Check for self-asserted CLA acknowledgement text in the PR body
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check each commit for its author's Signed-off-by line
         env:
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$PR_AUTHOR" = "$REPO_OWNER" ] || [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
-            echo "PR author ($PR_AUTHOR) is the repository owner or the dependency bot; no acknowledgement needed."
-            exit 0
+          missing=0
+          for commit in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            email="$(git log -1 --format='%ae' "$commit")"
+            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$commit" | grep -qiF "<$email>"; then
+              echo "::error::Commit $(git log -1 --format='%h %s' "$commit") has no Signed-off-by line from its author <$email>."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Fix: git rebase --signoff $BASE_SHA && git push --force-with-lease"
+            exit 1
           fi
-          if echo "$PR_BODY" | grep -Eq "I have read the CLA Document and I hereby sign the CLA"; then
-            echo "Acknowledgement sentence present. NOTE: this is self-asserted and unverified."
-            echo "A reviewer must confirm a real ICLA/CCLA signature (D17) before merging."
-            exit 0
-          fi
-          echo "::error::Add the CLA acknowledgement sentence from CONTRIBUTING.md to the PR body."
-          echo "::notice::This check only looks for that sentence. It does not verify a signature; a maintainer must confirm the executed ICLA/CCLA out of band until the hosted CLA bot (D17) is live."
-          exit 1
+          echo "Every commit is signed off by its author."
