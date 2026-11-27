@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/config"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/config"
 )
 
 type pipeAddr struct{}

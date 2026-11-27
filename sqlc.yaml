@@ -1,4 +1,4 @@
-# MOAJ (Mentor of all Jacks) - SQLc Code Generation Configuration
+# MILE (Milestones, Insight, Learning & Evidence) - SQLc Code Generation Configuration
 # Implementation Target: Phase 2 (Persistence, retention-aware schema, and transactions)
 # Reference: docs/adr/ADR-01-go-sqlc-single-binary.md & docs/IMPLEMENTATION_PLAN.md §7 (Phase 2)
 version: "2"

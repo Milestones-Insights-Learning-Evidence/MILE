@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/enterprise"
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/observability"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/enterprise"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/observability"
 )
 
 type Options struct {

@@ -1,5 +1,10 @@
-module github.com/MOAJ-Mentor-of-all-Jacks/MOAJ
+module github.com/Milestones-Insights-Learning-Evidence/MILE
 
+// Minimum language/API level. `go mod tidy` canonicalizes this directive to a full
+// x.y.z version, and no `toolchain` line is declared, so this is a floor and not a
+// build pin: CI selects the toolchain with `go-version: 1.26.x` in
+// .github/workflows/ci-license-gate.yml so builds pick up the latest patched 1.26
+// release instead of inheriting standard-library advisories fixed after 1.26.0.
 go 1.26.0
 
 require github.com/prometheus/client_golang v1.25.0

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/internal/observability"
+	"github.com/Milestones-Insights-Learning-Evidence/MILE/internal/observability"
 )
 
 func testOptions(out io.Writer) Options {
@@ -96,8 +96,8 @@ func TestMetricsAuthorization(t *testing.T) {
 			if tc.status != 200 {
 				assertProblem(t, rr, tc.status)
 			} else if !strings.Contains(rr.Body.String(), "go_goroutines") ||
-				!strings.Contains(rr.Body.String(), "moaj_build_info") ||
-				!strings.Contains(rr.Body.String(), "moaj_process_start_time_seconds") {
+				!strings.Contains(rr.Body.String(), "mile_build_info") ||
+				!strings.Contains(rr.Body.String(), "mile_process_start_time_seconds") {
 				t.Fatal("authenticated scrape did not expose runtime metrics")
 			}
 		})
@@ -123,7 +123,7 @@ func TestTelemetryOmitsSecretsAndBoundsLabels(t *testing.T) {
 	}
 	scrape := httptest.NewRecorder()
 	opts.Metrics.Handler().ServeHTTP(scrape, httptest.NewRequest(http.MethodGet, "/metrics", nil))
-	if !strings.Contains(scrape.Body.String(), `moaj_http_requests_total{method="OTHER",route="unmatched",status="404"} 1`) {
+	if !strings.Contains(scrape.Body.String(), `mile_http_requests_total{method="OTHER",route="unmatched",status="404"} 1`) {
 		t.Fatalf("unexpected request counter: %s", scrape.Body.String())
 	}
 	if strings.Contains(scrape.Body.String(), "private-personnel") {

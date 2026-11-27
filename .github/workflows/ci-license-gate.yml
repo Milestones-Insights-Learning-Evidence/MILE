@@ -14,16 +14,20 @@ permissions:
 
 jobs:
   verify:
-    name: Build, Vet, Static Analysis & Race Tests (Community + EE)
+    name: Build, Vet, Static Analysis & Race Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # go-version (not go-version-file) so the latest patched 1.26.x is installed.
+      # go.mod declares `go 1.26.0` as a floor; resolving the file verbatim would pin
+      # 1.26.0 and miss standard-library security fixes that govulncheck reports.
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.26.x"
+          check-latest: true
           cache: true
 
       - name: Check Go formatting (gofmt)
@@ -40,11 +44,20 @@ jobs:
           go vet ./...
           go vet -tags ee ./...
 
-      - name: Run staticcheck (Community & Enterprise)
+      - name: Run staticcheck (Community, default build tags)
         uses: dominikh/staticcheck-action@v1.3.0
         with:
           version: "latest"
           install-go: false
+
+      # Files behind //go:build ee are invisible to the default run above, so the
+      # Enterprise build tag is analysed in a second pass.
+      - name: Run staticcheck (Enterprise, -tags ee)
+        uses: dominikh/staticcheck-action@v1.3.0
+        with:
+          version: "latest"
+          install-go: false
+          build-tags: ee
 
       - name: Run govulncheck
         run: |
@@ -53,7 +66,7 @@ jobs:
 
       - name: Verify Community build never imports proprietary ee/ packages
         run: |
-          ee_imports="$(go list -deps ./cmd/moaj | grep '^github.com/MOAJ-Mentor-of-all-Jacks/MOAJ/ee' || true)"
+          ee_imports="$(go list -deps ./cmd/mile | grep '^github.com/Milestones-Insights-Learning-Evidence/MILE/ee' || true)"
           if [ -n "$ee_imports" ]; then
             echo "::error::Community build imports proprietary ee/ packages:"
             echo "$ee_imports"
@@ -70,13 +83,14 @@ jobs:
       - name: Compile Community & Enterprise single binaries
         run: |
           mkdir -p bin
-          go build -trimpath -o bin/moaj ./cmd/moaj
-          go build -trimpath -tags ee -o bin/moaj-ee ./cmd/moaj
-          ./bin/moaj version
-          ./bin/moaj-ee version
+          go build -trimpath -o bin/mile ./cmd/mile
+          go build -trimpath -tags ee -o bin/mile-ee ./cmd/mile
+          ./bin/mile version
+          ./bin/mile-ee version
 
-  license-and-cla-gate:
-    name: Dependency License Cleanliness (NFR-03) & CLA Gate (IMS-GOV-01)
+  # Every distributed dependency must use an approved permissive licence (NFR-03).
+  license-gate:
+    name: Dependency License Cleanliness
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -85,7 +99,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.26.x"
+          check-latest: true
           cache: true
 
       - name: Verify Go module allowlist (docs/governance/DEPENDENCY_LICENSES.md)
@@ -94,7 +109,7 @@ jobs:
       - name: Run go-licenses check against copyleft/restricted licenses (IMS-GOV-01 §6)
         run: |
           go install github.com/google/go-licenses@latest
-          go-licenses check ./cmd/moaj --disallowed_types=forbidden,restricted,reciprocal,unknown
+          go-licenses check ./cmd/mile --disallowed_types=forbidden,restricted,reciprocal,unknown
 
       - name: Check UI dependencies license cleanliness (when ui/node_modules exists)
         run: |
@@ -108,20 +123,34 @@ jobs:
             echo "UI dependencies not installed yet (Phase 4 scaffold); skipping npm license-checker."
           fi
 
-      - name: Enforce Contributor License Agreement (CLA) on external Pull Requests (IMS-GOV-01 §2)
-        if: github.event_name == 'pull_request'
+  # Every commit in a pull request must carry a Developer Certificate of Origin
+  # sign-off from its own author (CONTRIBUTING.md §2). A sign-off is a statement
+  # in the commit message, not a cryptographic signature.
+  dco:
+    name: DCO sign-off on every commit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check each commit for its author's Signed-off-by line
         env:
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$PR_AUTHOR" = "$REPO_OWNER" ] || [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
-            echo "PR author ($PR_AUTHOR) is repository owner or automated dependency bot; CLA satisfied."
-            exit 0
+          missing=0
+          for commit in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            email="$(git log -1 --format='%ae' "$commit")"
+            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$commit" | grep -qiF "<$email>"; then
+              echo "::error::Commit $(git log -1 --format='%h %s' "$commit") has no Signed-off-by line from its author <$email>."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Fix: git rebase --signoff $BASE_SHA && git push --force-with-lease"
+            exit 1
           fi
-          if echo "$PR_BODY" | grep -Eq "I have read the CLA Document and I hereby sign the CLA"; then
-            echo "External contributor ($PR_AUTHOR) confirmed CLA signature in PR body."
-            exit 0
-          fi
-          echo "::error::External contributions require a signed Individual/Corporate CLA per IMS-GOV-01 §2 and CONTRIBUTING.md."
-          exit 1
+          echo "Every commit is signed off by its author."

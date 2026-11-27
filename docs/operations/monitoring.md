@@ -1,6 +1,6 @@
-# MOAJ (Mentor of all Jacks) Operations & Monitoring Guide
+# MILE (Milestones, Insight, Learning & Evidence) Operations & Monitoring Guide
 
-This document defines the Phase 1 observability contract for **MOAJ (Mentor of all Jacks)**, including health and readiness semantics, Prometheus metric definitions, label-cardinality and privacy protections, structured JSON logging rules, and alert troubleshooting runbooks.
+This document defines the Phase 1 observability contract for **MILE (Milestones, Insight, Learning & Evidence)**, including health and readiness semantics, Prometheus metric definitions, label-cardinality and privacy protections, structured JSON logging rules, and alert troubleshooting runbooks.
 
 Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.md` Section 6.3). Every operator can inspect service health, HTTP behavior, and runtime resource usage without an Enterprise license.
 
@@ -11,18 +11,28 @@ Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.
 | Endpoint | Methods | Purpose | Phase 1 Behavior |
 | --- | --- | --- | --- |
 | `/healthz` | `GET`, `HEAD` | Process liveness probe | Returns `200 OK` with `{"status":"ok"}` as long as the HTTP server process is alive—even while draining during graceful shutdown. Do not point load-balancer traffic routing solely at `/healthz` if graceful drain isolation is required. |
-| `/readyz` | `GET`, `HEAD` | Traffic readiness probe | Returns `200 OK` with `{"status":"ready","scope":"http-runtime"}` during normal operation. Immediately switches to `503 Service Unavailable` (`application/problem+json`) when shutdown draining begins (`BeginShutdown()`). In Phase 2+, `/readyz` expands to verify PostgreSQL and Valkey connectivity. |
+| `/readyz` | `GET`, `HEAD` | Traffic readiness probe | Returns `200 OK` with `{"status":"ready","scope":"http-runtime"}` during normal operation. Immediately switches to `503 Service Unavailable` (`application/problem+json`) when shutdown draining begins (`BeginShutdown()`). In Phase 2+, `/readyz` expands to verify PostgreSQL connectivity. |
 | `/metrics` | `GET`, `HEAD` | Prometheus & OpenMetrics scrape endpoint | Exposes application, Go runtime, and OS process metrics from an instance-scoped Prometheus registry. Protected by loopback/token authorization rules (see below). |
 
 ### `/metrics` Authorization Rules
 
-1. **Token Configured (`MOAJ_METRICS_TOKEN` non-empty)**:
+1. **Token Configured (`MILE_METRICS_TOKEN` non-empty)**:
    - Every scrape request (including from loopback) must provide `Authorization: Bearer <token>`.
    - Token verification compares SHA-256 digests using `crypto/subtle.ConstantTimeCompare`.
    - Missing or invalid credentials return `401 Unauthorized` with `WWW-Authenticate: Bearer realm="metrics"` and an RFC 9457 Problem Details body.
-2. **Token Unset (`MOAJ_METRICS_TOKEN` empty — allowed in `development` / `test` on loopback only)**:
-   - Startup validation rejects an empty `MOAJ_METRICS_TOKEN` when `MOAJ_ENV=production` or when `MOAJ_HTTP_ADDR` binds to a non-loopback address (such as `0.0.0.0:8000` or `:8000`).
-   - When `MOAJ_METRICS_TOKEN` is unset in local development, `/metrics` inspects the socket peer (`r.RemoteAddr`) directly—never `X-Forwarded-For` or `X-Real-IP`—and rejects non-loopback peers with `403 Forbidden`.
+2. **Token Unset (`MILE_METRICS_TOKEN` empty — allowed in `development` / `test` on loopback only)**:
+   - Startup validation rejects an empty `MILE_METRICS_TOKEN` when `MILE_ENV=production` or when `MILE_HTTP_ADDR` binds to a non-loopback address (such as `0.0.0.0:8000` or `:8000`).
+   - When `MILE_METRICS_TOKEN` is unset in local development, `/metrics` inspects the socket peer (`r.RemoteAddr`) directly—never `X-Forwarded-For` or `X-Real-IP`—and rejects non-loopback peers with `403 Forbidden`.
+
+### Containers and Compose
+
+A container that serves published traffic must bind beyond loopback, so **the token is always required there**:
+
+- Set `MILE_HTTP_ADDR=0.0.0.0:8000`. The default `127.0.0.1:8000` is reachable only from inside the container, so a published port would accept nothing.
+- Supply `MILE_METRICS_TOKEN` (or `MILE_METRICS_TOKEN_FILE`) with at least 32 non-whitespace characters, for example `openssl rand -hex 32`. Prefer the `_FILE` form with a mounted secret so the value does not appear in `docker inspect` output or shell history.
+- Without it the process exits at startup with a configuration error rather than exposing an unauthenticated `/metrics`. This is intentional, not a bug.
+- `deploy/Dockerfile` publishes port `8000` (matching the default) and ships a `HEALTHCHECK` against `/healthz`. Because `/healthz` stays `200` while the process drains, orchestrators that need drain-aware routing must probe `/readyz` instead.
+- `deploy/docker-compose.yml` publishes PostgreSQL on `127.0.0.1` only; its fixed development password must never be exposed on a routable interface.
 
 ---
 
@@ -32,16 +42,17 @@ Monitoring is a first-class Community capability (per `docs/IMPLEMENTATION_PLAN.
 
 | Metric Name | Type | Labels | Description |
 | --- | --- | --- | --- |
-| `moaj_build_info` | Gauge | `version`, `edition` | Constant `1` identifying the running binary version and edition (`community` or `enterprise-preview`). |
-| `moaj_process_start_time_seconds` | Gauge | *(none)* | Unix epoch timestamp (seconds) recorded when the `Metrics` registry is initialized. Used for cross-platform uptime (`time() - moaj_process_start_time_seconds`) and restart detection (`changes(moaj_process_start_time_seconds[15m])`). |
-| `moaj_http_requests_total` | Counter | `route`, `method`, `status` | Total completed HTTP requests. |
-| `moaj_http_request_duration_seconds` | Histogram | `route`, `method` | HTTP request execution latency in seconds using standard Prometheus buckets (`0.005` to `10` seconds). |
-| `moaj_http_requests_in_flight` | Gauge | *(none)* | Number of HTTP requests currently executing inside the server middleware. |
+| `mile_build_info` | Gauge | `version`, `edition` | Constant `1` identifying the running binary version and edition (`community` or `enterprise-preview`). |
+| `mile_process_start_time_seconds` | Gauge | *(none)* | Unix epoch timestamp (seconds) recorded when the `Metrics` registry is initialized. Used for cross-platform uptime (`time() - mile_process_start_time_seconds`) and restart detection (`changes(mile_process_start_time_seconds[15m])`). |
+| `mile_http_requests_total` | Counter | `route`, `method`, `status` | Total completed HTTP requests. |
+| `mile_http_request_duration_seconds` | Histogram | `route`, `method` | HTTP request execution latency in seconds using standard Prometheus buckets (`0.005` to `10` seconds). |
+| `mile_http_requests_in_flight` | Gauge | *(none)* | Number of HTTP requests currently executing inside the server middleware. |
 
 ### Standard Runtime Collectors
 
 Each `observability.Metrics` registry also registers:
 - **`collectors.NewGoCollector()`**: Exports `go_goroutines`, `go_memstats_alloc_bytes`, `go_memstats_heap_inuse_bytes`, `go_gc_duration_seconds`, and Go runtime scheduler statistics.
+  - `go_gc_duration_seconds` is a **summary** that `client_golang` exports with the quantiles `0`, `0.25`, `0.5`, `0.75` and `1` only. There is no `quantile="0.99"` series; dashboards and alerts must use `quantile="0.75"` or `quantile="1"` (observed maximum pause), or switch to the `/metrics` runtime histogram `go_gc_pauses_seconds` if a true high percentile is required.
 - **`collectors.NewProcessCollector()`**: Exports `process_cpu_seconds_total`, `process_resident_memory_bytes`, and `process_open_fds` on supported OS platforms (Linux/procfs).
 
 ### Label Cardinality & Privacy Policy
@@ -50,13 +61,13 @@ To prevent cardinality explosions and protect intern/mentor privacy (`docs/IMPLE
 - **`route`**: Bounded to registered `http.ServeMux` route patterns (e.g., `"/healthz"`, `"/readyz"`, `"/metrics"`) or the constant `"unmatched"` when no pattern matches (`""` or catch-all `"/"`). Raw request URLs and path parameters are **never** emitted as metric labels.
 - **`method`**: Normalized via `observability.MethodLabel` to standard HTTP verbs (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `CONNECT`, `TRACE`) or `"OTHER"`. Arbitrary client-supplied method strings cannot create new time series.
 - **`status`**: Numeric HTTP status code (`200`, `404`, `409`, `428`, `500`, etc.).
-- **Prohibited Labels**: User IDs, intern/mentor names, emails, task IDs, cohort IDs, query strings, client IP addresses, and free-text notes (`OTHER` intercept explanations) must never appear in metric labels.
+- **Prohibited Labels**: User IDs, intern/mentor names, emails, task IDs, cohort IDs, query strings, client IP addresses, and any typed text (block notes, closure notes, comments) must never appear in metric labels.
 
 ### Distinguishing Expected Workflow Outcomes from Faults
 
-In MOAJ's workflow engine (Phase 4+):
+In MILE's workflow engine (Phase 4+):
 - **`409 Conflict`** indicates a stale board version when two users mutate a task concurrently.
-- **`428 Precondition Required`** indicates a synchronous workflow intercept (Trigger A backward move, Trigger B >3x SLA breach, or Trigger C blocked oscillation) prompting for a structured reason code.
+- **`428 Precondition Required`** indicates a backward move held until the person making it picks a reason code. Nothing is committed until they do. (Whether a time overrun or repeated blocking also prompts is open item O31.)
 - Neither `409` nor `428` is a system fault. Dashboards (`deploy/monitoring/grafana-dashboard.json`) and alert rules (`deploy/monitoring/alerts.yml`) separate `409|428` domain responses from other `4xx` client errors and `5xx` server faults.
 
 ---
@@ -76,9 +87,9 @@ All logs are written as single-line JSON records to `stderr` via Go's `log/slog.
 
 ## 4. Local Monitoring Quickstart
 
-1. Start the MOAJ HTTP runtime:
+1. Start the MILE HTTP runtime:
    ```bash
-   go run ./cmd/moaj serve
+   go run ./cmd/mile serve
    ```
 2. Start Prometheus using the shipped configuration:
    ```bash
@@ -92,23 +103,32 @@ All logs are written as single-line JSON records to `stderr` via Go's `log/slog.
 
 The following sections correspond to the `runbook_url` annotations in `deploy/monitoring/alerts.yml`.
 
-### `MOAJTargetDown` {#moajtargetdown}
+Each `runbook_url` is an absolute link of the form
+`https://github.com/Milestones-Insights-Learning-Evidence/MILE/blob/main/docs/operations/monitoring.md#<alertname-lowercased>`,
+because Alertmanager and Grafana render that annotation as a clickable link and a
+repository-relative path resolves against the alerting UI, not against this repository.
+The heading anchors below are GitHub's auto-generated slugs, so **renaming an alert or
+its heading breaks the link**: keep each heading as the bare alert name in backticks.
+Explicit `{#anchor}` attributes are not Markdown and GitHub renders them as literal text,
+which is why they are not used here.
 
-- **Condition**: `up{job="moaj"} == 0` for 1 minute.
-- **Impact**: Either the `moaj` HTTP runtime process is down/unreachable, or Prometheus cannot authenticate/connect to `/metrics`.
+### `MILETargetDown`
+
+- **Condition**: `up{job="mile"} == 0` for 1 minute.
+- **Impact**: Either the `mile` HTTP runtime process is down/unreachable, or Prometheus cannot authenticate/connect to `/metrics`.
 - **Triage Steps**:
-  1. Check whether the `moaj` process or container is running and inspect its `stderr` JSON logs for `"startup or server failed"`.
+  1. Check whether the `mile` process or container is running and inspect its `stderr` JSON logs for `"startup or server failed"`.
   2. Probe liveness directly from the host:
      ```bash
      curl -i http://127.0.0.1:8000/healthz
      ```
   3. If `/healthz` returns `200 OK` but Prometheus still reports `up == 0`, test the `/metrics` endpoint with your configured bearer token:
      ```bash
-     curl -i -H "Authorization: Bearer $MOAJ_METRICS_TOKEN" http://127.0.0.1:8000/metrics
+     curl -i -H "Authorization: Bearer $MILE_METRICS_TOKEN" http://127.0.0.1:8000/metrics
      ```
-  4. Verify that `MOAJ_METRICS_TOKEN` (or `MOAJ_METRICS_TOKEN_FILE`) matches the token in Prometheus `authorization.credentials_file`.
+  4. Verify that `MILE_METRICS_TOKEN` (or `MILE_METRICS_TOKEN_FILE`) matches the token in Prometheus `authorization.credentials_file`.
 
-### `MOAJHighServerFaultRate` {#moajhighserverfaultrate}
+### `MILEHighServerFaultRate`
 
 - **Condition**: HTTP `5xx` responses exceed 1% of total requests over 5 minutes (while request rate > 0.1 req/s). Expected `409`/`428` workflow responses and `4xx` client errors do not trigger this alert.
 - **Impact**: Users are experiencing internal server errors (`500`) or service unavailability (`503`).
@@ -116,34 +136,34 @@ The following sections correspond to the `runbook_url` annotations in `deploy/mo
   1. Check whether the instance is stuck in a prolonged drain state (`GET /readyz` returning `503`).
   2. Filter `stderr` JSON logs for `"status":500`, `"status":503`, or `"msg":"HTTP handler panicked"`:
      ```bash
-     jq 'select(.status >= 500 or .msg == "HTTP handler panicked")' /var/log/moaj/moaj.log
+     jq 'select(.status >= 500 or .msg == "HTTP handler panicked")' /var/log/mile/mile.log
      ```
   3. Use the `request_id` from affected client error responses (`application/problem+json`) to locate the exact server log entry.
   4. In Phase 2+, verify PostgreSQL connectivity and pool saturation metrics.
 
-### `MOAJHighRequestLatencyP95` {#moajhighrequestlatencyp95}
+### `MILEHighRequestLatencyP95`
 
 - **Condition**: 95th percentile latency on any bounded `route` exceeds `500ms` over 5 minutes.
-- **Impact**: Degraded responsiveness on API or health endpoints; risk of hitting `MOAJ_HTTP_WRITE_TIMEOUT_SEC` (default `15s`).
+- **Impact**: Degraded responsiveness on API or health endpoints; risk of hitting `MILE_HTTP_WRITE_TIMEOUT_SEC` (default `15s`).
 - **Triage Steps**:
-  1. Open the **HTTP Request Latency (p50 / p95 / p99 by Route)** panel in Grafana (`uid: moaj-phase1-runtime`) to identify which `route` is slow.
+  1. Open the **HTTP Request Latency (p50 / p95 / p99 by Route)** panel in Grafana (`uid: mile-phase1-runtime`) to identify which `route` is slow.
   2. Inspect **Process CPU & GC Pause Duration** and **Memory Allocation & Resident Heap** to rule out host CPU throttling or memory pressure.
-  3. Correlate with **In-Flight HTTP Requests** to determine whether latency is caused by traffic saturation or downstream dependency contention (PostgreSQL/Valkey in Phases 2 and 5).
+  3. Correlate with **In-Flight HTTP Requests** to determine whether latency is caused by traffic saturation or downstream dependency contention (PostgreSQL, from Phase 2).
 
-### `MOAJFrequentProcessRestarts` {#moajfrequentprocessrestarts}
+### `MILEFrequentProcessRestarts`
 
-- **Condition**: `changes(moaj_process_start_time_seconds[15m]) > 2`.
+- **Condition**: `changes(mile_process_start_time_seconds[15m]) > 2`.
 - **Impact**: Crash loop, OOM kills, failing liveness probes, or repeated configuration/deployment restarts.
 - **Triage Steps**:
-  1. Inspect container orchestrator / systemd exit codes for the `moaj` service (`OOMKilled`, `exit code 1`, `SIGTERM`).
+  1. Inspect container orchestrator / systemd exit codes for the `mile` service (`OOMKilled`, `exit code 1`, `SIGTERM`).
   2. Check JSON logs immediately preceding each startup message (`"msg":"HTTP runtime listening"`) for `"msg":"startup or server failed"` or `"msg":"HTTP shutdown started"`.
   3. Compare `process_resident_memory_bytes` and `go_memstats_heap_inuse_bytes` against container memory limits.
 
-### `MOAJHighInFlightRequests` {#moajhighinflightrequests}
+### `MILEHighInFlightRequests`
 
-- **Condition**: `moaj_http_requests_in_flight > 100` for 5 minutes.
+- **Condition**: `mile_http_requests_in_flight > 100` for 5 minutes.
 - **Impact**: Request queuing or stalled handlers holding connections open.
 - **Triage Steps**:
-  1. Compare `moaj_http_requests_in_flight` with `go_goroutines` and incoming request rate (`rate(moaj_http_requests_total[5m])`).
-  2. Check whether slow clients or large payloads are holding connections; verify `MOAJ_HTTP_READ_HEADER_TIMEOUT_SEC` (default `5s`), `MOAJ_HTTP_READ_TIMEOUT_SEC` (default `10s`), and `MOAJ_HTTP_WRITE_TIMEOUT_SEC` (default `15s`).
+  1. Compare `mile_http_requests_in_flight` with `go_goroutines` and incoming request rate (`rate(mile_http_requests_total[5m])`).
+  2. Check whether slow clients or large payloads are holding connections; verify `MILE_HTTP_READ_HEADER_TIMEOUT_SEC` (default `5s`), `MILE_HTTP_READ_TIMEOUT_SEC` (default `10s`), and `MILE_HTTP_WRITE_TIMEOUT_SEC` (default `15s`).
   3. In Phase 4+, note that long-lived SSE streams (`/api/v1/events`) will be tracked via dedicated realtime stream gauges so ordinary HTTP saturation remains distinct from active event subscriptions.

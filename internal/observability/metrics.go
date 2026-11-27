@@ -23,23 +23,23 @@ func NewMetrics(version, edition string) *Metrics {
 	m := &Metrics{
 		registry: prometheus.NewRegistry(),
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "moaj_http_requests_total", Help: "Completed HTTP requests by bounded route, method and status.",
+			Name: "mile_http_requests_total", Help: "Completed HTTP requests by bounded route, method and status.",
 		}, []string{"route", "method", "status"}),
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name: "moaj_http_request_duration_seconds", Help: "HTTP request duration in seconds.",
+			Name: "mile_http_request_duration_seconds", Help: "HTTP request duration in seconds.",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"route", "method"}),
 		inFlight: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "moaj_http_requests_in_flight", Help: "HTTP requests currently being handled.",
+			Name: "mile_http_requests_in_flight", Help: "HTTP requests currently being handled.",
 		}),
 	}
 	build := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "moaj_build_info", Help: "Build and edition metadata.",
+		Name: "mile_build_info", Help: "Build and edition metadata.",
 		ConstLabels: prometheus.Labels{"version": version, "edition": edition},
 	})
 	build.Set(1)
 	startTime := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "moaj_process_start_time_seconds", Help: "Process start time in seconds since the Unix epoch.",
+		Name: "mile_process_start_time_seconds", Help: "Process start time in seconds since the Unix epoch.",
 	})
 	startTime.Set(float64(time.Now().Unix()))
 	m.registry.MustRegister(m.requests, m.duration, m.inFlight, build, startTime,

@@ -1,20 +1,31 @@
-# MOAJ (Mentor of all Jacks) - Local Development & Evaluation Compose Stack
+# MILE (Milestones, Insight, Learning & Evidence) - Local Development & Evaluation Compose Stack
 # Implementation Target: Phase 2 (PostgreSQL 16), Phase 5 (Valkey + Worker), Phase 8 (Production Community release)
-# Note: Monitoring stack (Prometheus + Grafana) is available now in deploy/monitoring/docker-compose.monitoring.yml
 # Reference: docs/adr/ADR-01-go-sqlc-single-binary.md (Decision D3: Valkey BSD-3-Clause)
+#
+# Monitoring assets are shipped as plain configuration files, not as a Compose
+# stack: deploy/monitoring/prometheus.yml, deploy/monitoring/alerts.yml, and
+# deploy/monitoring/grafana-dashboard.json. Run them per
+# docs/operations/monitoring.md §4. There is no docker-compose.monitoring.yml.
+#
+# SECURITY: development only. Both services are published on the loopback interface
+# only (127.0.0.1), because the credentials below are well-known fixed development
+# values. Publishing "5432:5432" instead of "127.0.0.1:5432:5432" binds every host
+# interface, which on a machine without a host firewall exposes a Postgres superuser
+# with a password committed to this repository. Never reuse these values, or a
+# 0.0.0.0 mapping, outside a local workstation.
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: moaj
-      POSTGRES_PASSWORD: moaj_dev_password
-      POSTGRES_DB: moaj
+      POSTGRES_USER: mile
+      POSTGRES_PASSWORD: mile_dev_password
+      POSTGRES_DB: mile
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moaj -d moaj"]
+      test: ["CMD-SHELL", "pg_isready -U mile -d mile"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,7 +34,7 @@ services:
     image: valkey/valkey:8.0-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 10s

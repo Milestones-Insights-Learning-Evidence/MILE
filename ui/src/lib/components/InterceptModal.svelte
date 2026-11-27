@@ -1,5 +1,5 @@
 <!--
-  MOAJ (Mentor of all Jacks) - Synchronous HTTP 428 Workflow Intercept Modal Scaffold
+  MILE (Milestones, Insight, Learning & Evidence) - Synchronous HTTP 428 Workflow Intercept Modal Scaffold
   Implementation Target: Phase 4 (First usable workflow slice)
   Reference: docs/adr/ADR-03-synchronous-http-428-intercept.md & docs/IMPLEMENTATION_PLAN.md §5.1
 
