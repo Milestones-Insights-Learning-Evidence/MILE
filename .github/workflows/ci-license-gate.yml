@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   verify:
-    name: Build, Vet, Static Analysis & Race Tests (Community + EE)
+    name: Build, Vet, Static Analysis & Race Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -88,8 +88,9 @@ jobs:
           ./bin/mile version
           ./bin/mile-ee version
 
+  # Every distributed dependency must use an approved permissive licence (NFR-03).
   license-gate:
-    name: Dependency License Cleanliness (NFR-03)
+    name: Dependency License Cleanliness
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
